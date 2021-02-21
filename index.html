@@ -1,3 +1,23 @@
 <!doctype html>
 <html>
-  test
+<script type="module">
+import {Database} from './serverless2/database.js';
+
+async function init() {
+  window.db = await Database('foo', 'sXwEiRxN3nmAyn3QXabxPEsm7v4uOirO9oLXiAJyCa');
+  setInterval(() => {
+    document.getElementById('out').innerText = (
+      'foo = ' + JSON.stringify(Array.from(db.table('foo'))) + '\n' +
+      'peerCount = ' + JSON.stringify(db.peerCount()) + '\n' +
+      'state = ' + db.state().toString() + '\n'
+    );
+  }, 1000);
+}
+
+init();
+
+</script>
+
+<pre id="out">
+foo = undefined
+</pre>
