@@ -77,11 +77,45 @@ function makeReviewOrder(order, notes) {
   }
 }
 
-// selectedList <-> [{item, selected: true}]
-//  quadratic naively one way, linear the other way
-// searchQuery <-> [{item}]
-//  extend query can be done by re-filtering
-// tag object <-> tag string
-//  linear transformation, one is db, one is presentation
+// the more assumptions to params the more optimal it can be
+// map: params, {item} -> {item}
+// filter: params, {item} -> {item}
+// join: {item}, {local} -> {(item, local)}
+//   select: selectedIds - this is a join!
+//   left/right joins, sparse joins
+// snapshot: {item} -> {copy(item)}
+// sort: params, {item} -> [item]
+// index / match: {item} -> index ; query, index -> {item}
+//   implement via map keys and aggregate
+// if branch: params
+//   either do inside a map (applicative), or need bind (monad)
+// pull vs push
+//
+// no use so far
+//   group by
+//     aggregate by commutative operator sum, min, max, count
+//   limit offset: nah we are small data
+//   distinct: nah
+//
+// how to implement a todo list that you can drag items around while textbox active
+//   a: no support for animation
+//   b: will not retain same text box
+
+// textbox input <-> state keep them in sync
+
+// immutability?
+// object with key tracking
+// variable (root) -> observable -> multiple can be merged with function -> observer (root)
+const db = Incremental();
+const a = db.Val(5);
+a.update(6);
+const c = db.Fn(a, b.x, (a, b) => a + b);
+const c_callback = c.observe(x => console.log(x)); c_callback.ignore();
+const c_focus = c.focus(); c_focus.get(); c_focus.ignore(); // focus can be forgotten
+
+const m = db.map([['x', 6]]);
+m.update('x', 7);
+const n = m.map((k, v) => [k, v]);
+const n_focus = n.focus(); n_focus.get('x');
 
 export {main};
