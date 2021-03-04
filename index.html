@@ -4,9 +4,11 @@
 // import {Database} from './serverless2/database.js';
 // init();
 
-import {ref, computed} from './ref.js';
+import {ref, computed, refMap, computedMap} from './ref.js';
 window.ref = ref;
 window.computed = computed;
+window.refMap = refMap;
+window.computedMap = computedMap;
 
 window.a = ref(5);
 window.b = ref(6);
@@ -14,6 +16,11 @@ window.c = ref(7);
 window.s1 = computed(() => a.value + b.value);
 window.s2 = computed(() => s1.value + c.value);
 window.s3 = computed(() => s1.value + s2.value);
+
+window.x = refMap();
+window.y = x.map((key, val) => val + a.value);
+window.z = y.rekey((key, val) => new Map().set(val % 2, val));
+x.value.set('hi', 5);
 
 </script>
 

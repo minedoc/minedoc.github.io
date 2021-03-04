@@ -1,33 +1,49 @@
-// is this a clone of vue? yes
+// yes this is a clone of vue
 // no early stopping
 //   if you have object, equality is hard, values are easier
 //   how likely is this going to be - measure in practice
 // no garbage collection - all computations will remain forever
 //   how likely is it that this fails
-// ref(obj) is a single value, cannot mutate part of it
-// refMap() is a single value for computed
-//   it offers a few fine grained methods
-// update mark dirty, fetch is recompute
-// ref { value }
-// refMap { value, map, rekey, join, sort }
-// computed { value }
-// computedMap { value, map, rekey, join, sort }
+//
+// ref -> computed, computedMap: sync
+// computedMap -> computedMap: syncKeys
+// computedMap -> ref: sync (if no syncKeys, update sync)
+//
+// can we hook directly to UI?
+// div = myData.mapDom(template, (key, value, dom) => ...)
+// div.value - evaluate the 'dom'
+//
+// how is bind implemented in Incremental (do they regen the deps?)
 
 const usedRefs = [];
 
-function markLate(outputs) {
-  for (const output of outputs) {
-    if (!output.late) {
-      output.late = true;
-      markLate(output.outputs);
+function invalidate(input) {
+  for (const output of input.outputs) {
+    if (output.sync) {
+      output.sync = false;
+      invalidate(output);
+    }
+  }
+  for (const output of input.keyedOutputs) {
+    if (output.sync) {
+      output.sync = false;
+      invalidate(output);
     }
   }
 }
 
-function markLateKey(key, keyedOutputs) {
-  for (const output in keyedOutputs) {
-    output.lateKeys.add(key);
-    markLateKey(output.keyedOutputs);
+function invalidateKey(input, key) {
+  for (const output of input.outputs) {
+    if (output.sync) {
+      output.sync = false;
+      invalidate(output);
+    }
+  }
+  for (const output of input.keyedOutputs) {
+    if (output.sync) {
+      output.syncKeys.add(key);
+      invalidateKey(output, key);
+    }
   }
 }
 
@@ -47,108 +63,200 @@ function freeze(x) {
 }
 
 function ref(init) {
-  let val = init;
+  let inner = init;
   const outputs = new Set();
   return {
     outputs,
+    keyedOutputs: new Set(),
     get value() {
       markUse(this);
-      return val;
+      return inner;
     },
     set value(value) {
-      markLate(outputs);
-      val = freeze(value);
+      invalidate(this);
+      inner = freeze(value);
     },
   };
 }
 
 function computed(fn) {
+  let inner = undefined;
   const outputs = new Set();
   return {
     outputs,
-    late: true,
-    cache: undefined,
+    sync: false,
     get value() {
       markUse(this);
-      if (this.late) {
+      if (!this.sync) {
         usedRefs.push(this);
-        this.cache = fn(); console.log('call', fn, this.cache);
+        inner = fn(); console.log('call', fn, inner);
         usedRefs.pop();
-        this.late = false;
+        this.sync = false;
       }
-      return this.cache;
+      return inner;
     },
     set value(value) { throw 'fail' },
   };
 }
 
-const mapMethods = {
-  function map() { // k,v -> k,u
+const methods = {
+  get: Symbol(),
+  has: Symbol(),
+  set: Symbol(),
+  delete: Symbol(),
+  clear: Symbol(),
+};
+class InternalMap extends Map {
+  [methods.get](key) { return super.get(key); }
+  [methods.has](key) { return super.has(key); }
+  [methods.set](key, value) { super.set(key, value); return value; }
+  [methods.delete](key) { return super.delete(key); }
+  [methods.clear]() { super.clear(); }
+}
+class ReadOnlyMap extends InternalMap {
+  set(key, value) { throw 'fail' }
+  delete(key) { throw 'fail' }
+  clear(key) { throw 'fail' }
+}
+const deletion = Symbol();
+
+function mapMethods(src, parent) {
+  function watch(targets, map) {
+    for (const target of targets) {
+      target.keyedOutputs.add(map);
+    }
+    return map;
   }
-  function rekey() {  // k,v -> (k,v -> Map<j,u>) -> j,Map<k,u>
+  function map(fn) { // k,v -> k,u
+    function update(dest, keys) {
+      src.syncNow();
+      for (const key of keys) {
+        const value = src[methods.get](key);
+        const result = value === undefined ? undefined : fn(key, value);
+        if (result == undefined) {
+          dest[methods.delete](key);
+        } else {
+          dest[methods.set](key, result);
+        }
+      }
+    }
+    function updateAll(dest) {
+      dest[methods.clear]();
+      update(dest, src.keys());
+    }
+    return watch([parent], computedMap(update, updateAll));
   }
-  function join(other, default) {  // if default left join else inner join
+  function rekey(fn) {  // k,v -> (k,v -> Map<j,u>) -> j,Map<k,u>
+    const keyMap = new ReadOnlyMap();
+    function insert(dest, keys) {
+      src.syncNow();
+      for (const key of keys) {
+        if (src[methods.has](key)) {
+          for (const [newKey, newValue] of keyMap[methods.set](key, fn(key, src[methods.get](key)))) {
+            const outMap = dest[methods.get](newKey) ?? dest[methods.set](newKey, new Map());
+            outMap.set(key, newValue);
+          }
+        }
+      }
+    }
+    function update(dest, keys) {
+      for (const key of keys) {
+        for (const [oldKey, oldValue] of (keyMap.get(key) ?? [])) {
+          dest[methods.get](oldKey).delete(key);
+        }
+      }
+      insert(dest, keys);
+    }
+    function updateAll(dest) {
+      keyMap[methods.clear]();
+      dest[methods.clear]();
+      insert(dest, src.keys());
+    }
+    return watch([parent], computedMap(update, updateAll, parent));
   }
-  function sort() {
+  function join(other, fn) {  // k,v -> k,u -> (v,u -> w) -> k,w
+    function update(dest, key) {
+      src.syncNow();
+      const result = fn(key, src[methods.get](key), other.value[methods.get](key));  // BUG: should not use other.value
+      if (result === undefined) {
+        dest[methods.delete](key);
+      } else {
+        dest[methods.set](key, result);
+      }
+    }
+    function updateAll(dest) {
+      dest[methods.clear]();
+      update(dest, src.keys());
+    }
+    return watch([parent, other.keyedOutputs], computedMap(update, () => 0, parent));
   }
+  function sort(fn) {
+    return computed(() => Array.from(src.value.entries()).sort(fn));  // costly fn tracking
+  }
+  return {map, rekey, join, sort};
 }
 
 function refMap(init) {
   const outputs = new Set();
   const keyedOutputs = new Set();
-  class RefMap extends Map {
-    set(key, value) { markLateKey(key, keyedOutputs); return super.set(key, value); }
-    delete(key) { markLateKey(key, keyedOutputs); return super.delete(key); }
-    clear(key) { markAllLate(); return super.clear(); }
+  class RefMap extends InternalMap {
+    set(key, value) { invalidateKey(result, key); return super.set(key, value); }
+    delete(key) { invalidateKey(result, key); return super.delete(key); }
+    clear() { invalidate(result); super.clear(); }
   }
-  const wrapper = new RefMap(init);
-  return {
+  const inner = new RefMap(init);
+  inner.syncNow = () => 0;
+  const result = {
     outputs,
     keyedOutputs,
     get value() {
       markUse(this);
-      return wrapper;
+      return inner;
     },
     set value(value) {
-      markLate(this);
-      markAllLate(this);
+      invalidate(this);
       inner = new RefMap(value);
     },
-    ...mapMethods,
   };
+  Object.assign(result, mapMethods(inner, result));
+  return result;
 }
 
-function computedMap() {
+function computedMap(update, updateAll) {
   const outputs = new Set();
   const keyedOutputs = new Set();
-  class ReadOnlyRefMap extends Map {
-    set(key, value) { throw 'fail' }
-    delete(key) { throw 'fail' }
-    clear(key) { throw 'fail' }
+  const inner = new ReadOnlyMap();
+  const syncKeys = new Set();
+  inner.syncNow = () => {
+    if (!result.sync || syncKeys.size > 0) {
+      usedRefs.push(result);
+      if (!result.sync) {
+        updateAll(inner);
+      } else {
+        update(inner, syncKeys);
+      }
+      usedRefs.pop();
+      result.sync = true;
+      syncKeys.clear();
+    }
   }
-  const wrapper = new RefMap();
-  return {
-    outputs, keyedOutputs,
-    late: true,
-    allLate: true,
-    lateKeys: new Set(),
+  const result = {
+    outputs,
+    keyedOutputs,
+    sync: false,
+    syncKeys,
     get value() {
       markUse(this);
-      if (this.late || this.allLate || this.keyLate.length > 0) {
-        usedRefs.push(this);
-        recompute(this.allLate ? mapParent.keys() : this.keyLate);
-        usedRefs.pop();
-        this.late = false;
-        this.keyLate = [];
-      }
-      return wrapper;
+      inner.syncNow();
+      return inner;
     },
     set value(value) { throw 'fail' },
-    ...mapMethods,
   };
+  Object.assign(result, mapMethods(inner, result));
+  return result;
 }
 
-export {ref, computed};
+export {ref, computed, refMap, computedMap};
 
 /*
 function StateExample() {
