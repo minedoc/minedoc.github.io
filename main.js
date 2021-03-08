@@ -7,10 +7,16 @@ import {ref} from './serverless2/database.js';
 // TODO 9: how to implement a draggable list with textbox - animation & dom retention
 
 async function main() {
-  render();
-
   const db = await Database('foo', 'sXwEiRxN3nmAyn3QXabxPEsm7v4uOirO9oLXiAJyCa');
-  state.notes = db.table('notes');
+
+  const page = ref('loading');
+  const notes = refMap(db.table('notes'));
+  const online = ref(false);
+  const noteList = {
+    query: ref(''),
+    order: ref('priority'),
+  };
+
   if (window.history.state) {
     setPage(window.history.state);
   } else {
@@ -28,14 +34,6 @@ async function main() {
   });
 }
 
-var state = {
-  page: {
-    page: 'loading',
-  },
-  notes: {},
-  online: false,
-};
-
 function toUrl(state) {
   const params = new URLSearchParams(state.page.url).toString();
   return '/' + state.page.page + (params.length > 0 ? '?' + params : '');
@@ -47,7 +45,6 @@ function fromUrl(url) {
 
 function setPage(page) {
   state.page = maybeInitPage(page);
-  render();
 }
 
 function pushPage(page) {
@@ -55,7 +52,6 @@ function pushPage(page) {
   page = maybeInitPage(page);
   window.history.pushState(page, '', toUrl(page));
   state.page = page;
-  render();
 }
 
 function maybeInitPage(page) {
