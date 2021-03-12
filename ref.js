@@ -30,8 +30,8 @@ const ref = baseRef((init, outputs) => freeze(init));
 
 const mapMethods = {
   select(fn) { return select(this, fn) },
-  join(other, fn) { return join(this, other, fn) },
-  groupby(fn) { return groupby(this, fn) },
+  filter(fn) { return filter(this, fn) },
+  groupBy(fn) { return groupBy(this, fn) },
 };
 
 const refMap = baseRef((init, outputs) => new RefMap(init, outputs), mapMethods);
@@ -90,24 +90,27 @@ function select(srcRef, fn) { // k,v -> (k,v -> Maybe u) -> k,u
   return Object.assign(computed(updateAll, updateKeys), mapMethods);
 }
 
-function join(leftRef, rightRef, fn) {  // k,v -> k,u -> (v,u -> Maybe w) -> k,w
+function filter(srcRef, fn) {
+  return select(srcRef, (k, v) => fn(k, v) ? v : undefined);
+}
+
+function join(srcRefs, fn) {  // k,v -> k,u -> (v,u -> Maybe w) -> k,w
   function updateKeys(dest, keys) {
-    const left = leftRef.value;
-    const right = rightRef.value;
+    const srcs = srcRefs.map(r => r.value);
     for (const key of keys) {
-      const value = left.get(key);
-      mapSave(dest, key, value === undefined ? undefined : fn(key, value, right.get(key)));
+      const value = srcs[0].get(key);
+      mapSave(dest, key, value === undefined ? undefined : fn(key, ...vals.map(v => v.get(key)));
     }
   }
   function updateAll(dest) {
     dest[privateMethod.clear]();
-    updateKeys(dest, leftRef.value.keys());
+    updateKeys(dest, refs[0].value.keys());
     return dest;
   }
   return Object.assign(computed(updateAll, updateKeys), mapMethods);
 }
 
-function groupby(srcRef, fn) {  // k,v -> (k,v -> Map<j,u>) -> j,Map<k,u>
+function groupBy(srcRef, fn) {  // k,v -> (k,v -> Map<j,u>) -> j,Map<k,u>
   const keyMap = new Map();
   const getDef = (dest, key) => dest.get(key) ?? dest[privateMethod.set](key, new Map());
   const setMap = (dest, key, value) => { dest.set(key, value); return value };
