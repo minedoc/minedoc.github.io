@@ -19,8 +19,10 @@ function baseRef(constructor, methods) {
         return inner;
       },
       set value(init) {
-        outputs.forEach(output => output(undefined));
-        inner = constructor(init, outputs);
+        if (init != inner) {
+          outputs.forEach(output => output(undefined));
+          inner = constructor(init, outputs);
+        }
       },
     }, methods);
   };

@@ -1,28 +1,95 @@
 <!doctype html>
-<html>
-<script type="module">
-// import {Database} from './serverless2/database.js';
-// init();
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#292e33">
+  <link rel="manifest" href="manifest.json">
+</head>
 
-import {ref, refMap, computed} from './ref.js';
-window.ref = ref;
-window.refMap = refMap;
-window.computed = computed;
+<link rel="stylesheet" type="text/css" href="index.css" />
 
-window.a = ref(5);
-window.b = ref(6);
-window.c = ref(7);
-window.s1 = computed(() => a.value + b.value);
-window.s2 = computed(() => s1.value + c.value);
-window.s3 = computed(() => s1.value + s2.value);
+<body onclick="wakelock()">
+  <div class="container currentList" data-template="container">
+    <div class="status"></div>
+    <div class="page listPage">
+      <div class="topBar">
+        <select class="listOrder" onchange="actions.orderChange()" data-bind="order">
+          <option value="review">Review</option>
+          <option value="recent">Recent</option>
+        </select>
+        <div class="spacer"></div>
+        <input type="text" data-bind="search" class="search" autocomplete="off" autocorrect="off" autocapitalize="false" spellcheck="false" aria-haspopup="false" placeholder="search">
+      </div>
+      <div class="results" data-bind="results">
+      </div>
+      <div class="botBar">
+        <div class="addButton" onclick="actions.addNote()">Add</div>
+      </div>
+    </div>
+    <div class="page editPage">
+      <div class="topBar">
+        <div class="backButton" onclick="history.back()">‹</div>
+        <div class="spacer"></div>
+        <div class="id" data-bind="id"></div>
+        <select class="importance" data-bind="importance">
+          <option value="0">0d</option>
+          <option value="1">1d</option>
+          <option value="2">4d</option>
+          <option value="3">8d</option>
+          <option value="4">16d</option>
+          <option value="5">32d</option>
+          <option value="6">64d</option>
+          <option value="7">128d</option>
+          <option value="8">256d</option>
+          <option value="10">Archive</option>
+        </select>
+        <div class="spacer"></div>
+        <div class="timer" data-bind="timer"></div>
+        <div class="spacer"></div>
+        <div class="relButton" onmousedown="actions.manualDiff()">𝚫</div>
+        <div class="spacer"></div>
+        <div class="relButton" onmousedown="actions.addNote()">+</div>
+        <div class="spacer"></div>
+        <div class="relButton" onmousedown="actions.related()">=</div>
+        <div class="spacer"></div>
+        <div class="deleteButton" onclick="actions.delete()">×</div>
+      </div>
+      <textarea class="editor" autocomplete="off" spellcheck="off" autocapitalize="off" onkeydown="actions.editorKeyDown(this)" data-bind="editor">What is this text doing?</textarea>
+      <div class="related" data-bind="related"></div>
+      <div class="botBar sendKeys">
+        <div onclick="actions.sendKey(this)">=</div>
+        <div onclick="actions.sendKey(this)">(</div>
+        <div onclick="actions.sendKey(this)">)</div>
+        <div onclick="actions.sendKey(this)">:</div>
+        <div onclick="actions.sendKey(this)">_</div>
+        <div onclick="actions.sendKey(this)">+</div>
+        <div onclick="actions.editorDash(this)">-</div>
+        <div onclick="actions.sendKey(this)">'</div>
+        <div onclick="actions.editorCmd('undo')">↶</div>
+        <div onclick="actions.editorCmd('redo')">↷</div>
+        <div onclick="actions.editorIndent(-2)">⇦</div>
+        <div onclick="actions.editorIndent(2)">⇨</div>
+      </div>
+    </div>
+    <div class="page diffPage">
+      <div class="topBar">
+        <div class="backButton" onclick="history.back()">‹</div>
+      </div>
+      <div class="diffHolder" data-bind="diff"></div>
+      <div class="botBar">
+        <div class="diffSave" onclick="actions.diffSave()">Save</div>
+        <div class="spacer"></div>
+        <div class="diffCancel" onclick="history.back()">Cancel</div>
+      </div>
+    </div>
+  </div>
 
-window.x = refMap([['init', 2]]);
-window.y = x.select((key, val) => val + a.value);
-window.z = y.groupby((key, val) => new Map().set(val % 2, val));
-x.value.set('hi', 5);
+  <div class="item" onclick="actions.itemClick(this)" data-template="item">
+    <pre data-bind="text"></pre>
+  </div>
 
-</script>
+  <div onclick="actions.relatedClick(this)" data-template="related"></div>
 
-<pre id="out">
-foo = undefined
-</pre>
+<script type="module" src="main.js"></script>
+
