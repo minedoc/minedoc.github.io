@@ -1,0 +1,207 @@
+html {
+  font-size: 13px;
+  line-height: 1.23;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  user-select: none;
+  overflow-y: hidden; /* disable chrome pull down to refresh */
+  color: #fdfdfd;
+}
+html, body, .page, .container {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+@media screen and (min-width: 50em) {
+  html {
+    width: 50em;
+    margin: 0 auto;
+    background-color: #111;
+  }
+}
+body {
+  background-color: #292e33;
+}
+svg {
+  fill: #fdfdfd;
+}
+::placeholder {
+  color: #666;
+}
+.page {
+  display: flex;
+  flex-direction: column;
+}
+.listPage,
+.editPage,
+.diffPage {
+  display: none;
+}
+.currentList .listPage,
+.currentEdit .editPage,
+.currentDiff .diffPage {
+  display: flex;
+}
+.listPage .results {
+  flex: 1 1 auto;
+  overflow-y: scroll;
+}
+.topBar,
+.botBar,
+.topBar > * {
+  height: 3.5rem;
+  line-height: 3.5rem;
+}
+.topBar > * {
+  font-size: 1.7rem;
+}
+.topBar {
+  border-bottom: 2px solid #666;
+  display: flex;
+  flex: 0 0 auto;
+}
+.botBar {
+  border-top: 2px solid #666;
+  flex: 0 0 auto;
+}
+.spacer {
+  width: 0;
+  border-right: 1px solid #666;
+  height: 1.5rem;
+  margin: 1rem 0;
+  flex: 0;
+}
+.backButton,
+.relButton,
+.deleteButton {
+  width: 3rem;
+  text-align: center;
+}
+.timer {
+  padding: 0 1rem;
+}
+.id {
+  padding-left: 1rem;
+  color: #999;
+}
+select {
+  background-color: inherit;
+  border: none;
+  padding: 0 1rem;
+  -webkit-appearance: none;
+  outline: none;
+  color: inherit;
+}
+option {
+  background-color: #292e33;
+}
+.importance {
+  flex: 1;
+}
+.search {
+  border: 0px none;
+  margin: 0 0 0 0.75rem;
+  padding: 0;
+  outline: none;
+  -webkit-appearance: none;
+  width: 1px;  /* necessary to prevent overflow! */
+  flex: 1 1 auto;
+  background-color: inherit;
+  color: inherit;
+}
+.item {
+  border-bottom: 1px solid #666;
+  font-family: monospace;
+  overflow: hidden;
+}
+.item.read {
+  color: #666;
+}
+.item pre {
+  padding: 0.5rem;
+  margin: 0;
+}
+.addButton {
+  padding: 0 1rem;
+  background-color: #444;
+}
+.editor {
+  border: 0 none;
+  outline: 0 none;
+  flex: 1 1 auto;
+  font-family: monospace;
+  padding: 0.5rem 0.5rem 2.5rem 0.5rem;
+  margin: 0;
+  user-select: text;
+  font-size: inherit;
+  background-color: inherit;
+  color: inherit;
+  line-height: inherit;
+}
+.noHighlight::selection {
+  background: rgba(0,0,0,0);
+}
+.sendKeys {
+  display: flex;
+}
+.sendKeys div {
+  flex: 1;
+  text-align: center;
+}
+.sendKeys div:last-child {
+  border-right: 0px none;
+}
+.diffPage .botBar {
+  display: flex;
+}
+.diffHolder {
+  flex: 1;
+  font-family: monospace;
+  white-space: pre-wrap;
+  padding: 0.5rem;
+  overflow-y: scroll;
+}
+ins {
+  background-color: #382;
+}
+del {
+  background-color: #a24;
+}
+ins,
+del {
+  text-decoration: none;
+}
+.diffSave,
+.diffCancel {
+  flex: 1;
+  padding: 0 1rem;
+}
+.status {
+  width: 100%;
+  height: 0.3rem;
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  display: none;
+}
+.network .status {
+  display: block;
+  background-color: #1a5;
+}
+.related {
+  display: none;
+  background-color: #363b40;
+  color: #f1ddc8;
+  max-height: 6rem;
+  overflow-y: scroll;
+  border-top: 2px solid #666;
+}
+.showRelated .related {
+  display: block;
+}
+.related > div {
+  height: 1.5rem;
+  line-height: 1.5rem;
+  padding: 0 0.5rem;
+  font-family: monospace;
+}

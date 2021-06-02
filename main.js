@@ -13,7 +13,7 @@ import {template} from './serverless2/lib.js';
 // pages - url is the entire state, everything unset is reset, on load can do some js
 
 // url scheme
-//   share=id-password : share link -> save id, open page
+//   # share=id-password : share link -> save id, open page
 //   db=id/6 page=x : view page
 //   db=id/6 page=x id=x : pass parameters
 
@@ -22,7 +22,7 @@ async function main() {
   function handleState() {
     const params = new URL(document.location).searchParams;
     state.page.value = params.get('page') || 'list';
-    state.pageState.value.load(Object.fromEntries(params));
+    state.pageState().load(Object.fromEntries(params));
   }
   handleState();
   window.addEventListener('popstate', handleState);
@@ -30,23 +30,21 @@ async function main() {
 
   function setPage(page, init) {
     state.page.value = page;
-    state.pageState.value.load(init);
+    state.pageState().load(init);
     window.history.pushState({}, '', toUrl());
   }
 
   function toUrl(state) {
-    const url = new URLSearchParams(state.pageState.value.save());
+    const url = new URLSearchParams(state.pageState().save());
     url.set('page', state.page.value);
     return url.toString();
   }
-
-  function handlers
 }
 
 const templates = {
   const body = template('container', [
     // how does state get shared?
-    ['search', 'change', event => state.pageState.value.search.value = event.target.value],
+    ['search', 'change', event => state.pageState().search.value = event.target.value],
   ], (target, data) => {
     target.root
       .attr('page', page.value)
@@ -83,13 +81,12 @@ function App() {
   const db = await Database('foo', 'sXwEiRxN3nmAyn3QXabxPEsm7v4uOirO9oLXiAJyCa');
   const notes = refMap(db.table('notes'));  // const notes = refMap(); db.table('notes', notes.value);
   const now = ref(Date.now());  // slow update - perhaps used cached non-determinstic computation
-
   const page = ref('');
-  const pageMap = {
+  const pages = {
     list: ListPage(notes),
     edit: EditPage(),
   };
-  const pageState = computed(() => pageMap[page.value]);
+  const pageState = () => pages[page.value];  // optimized away computed
   const online = ref(false);
   return {now, page, pageState, online};
 }
@@ -103,27 +100,26 @@ function ListPage(notes) {
     .filter((word, notes) => notes.size < 200);
   const matches = join([queryTokens, noteTokens], (word, query, notes) => notes)
     .groupBy((word, notes) => notes.entries().map([noteId, unused] => [noteId, notes.length]));
-  const matchedNotes = join([matches, notes], (noteId, words, note) => note);
-  const results = computed(() => query.value == '' ? notes.value : matchedNotes.value);
-  const noteCount = cached(computed(() => notes.value.length), 60 * 1000);
-  const relevantNotes = join([matches, notes], (noteId, words, note) => {
+  const docCount = computed(() => notes.value.length, 60 * 1000);
+  const matchedNotes = join([matches, notes], (noteId, words, note) => {
     let matchScore = 0;
-    const noteCountVal = noteCount.value;
-    // this seems to trigger a bug, notes will notify per key!
-    for (const [word, wordCount] of words.entries()) {
-      matchScore += Math.log(docCount / wordCount);
+    let docs = docCount.value;
+    for (const [word, wordCount] of words.entries()) {  // wordCount can be lazy too
+      matchScore += Math.log(docs / wordCount);
     }
-    return {matchScore, ...note}
+    return {matchScore, ...note};
   });
+  // optimized away computed
+  const results = () => Array.from((query.value == '' ? notes.value : matchedNotes.value).entries());
   const mapping = {
     priority: computed(() => {
       const n = now.value;
-      return Array.from(results.value.entries()).sort(descending(x => (n - x[1].editDate) / arrayIndex(targetAge, note.priority)))
+      return results().sort(descending(x => (n - x[1].editDate) / arrayIndex(targetAge, note.priority)))
     }),
-    newest: computed(() => Array.from(results.value.entries()).sort(descending(x => x[1].editDate))),
-    match: computed(() => Array.from(relevantNotes.value.entries()).sort(descending(x => x[1].matchScore))),
+    newest: computed(() => results().sort(descending(x => x[1].editDate))),
+    match: computed(() => results().sort(descending(x => x[1].matchScore))),
   };
-  const listing = computed(() => mapping[order.value].value);
+  const listing = () => mapping[order.value].value;  // optimized away computed
   const {save, load} = snapshot({query, order});
   return {query, order, listing, save, load};
 }
