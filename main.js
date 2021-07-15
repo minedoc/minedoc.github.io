@@ -1,6 +1,6 @@
-import {Database} from './serverless2/database.js';
-import {ref} from './serverless2/database.js';
-import {template} from './serverless2/lib.js';
+// import {Database} from './serverless2/database.js';
+import {template} from './lib.js';
+import {ref, refMap, computed, computedMap} from './ref.js';
 
 // TODO 2: integrate ref and Database
 // TODO 2: how to handle textbox value <-> state sync (one way?)
@@ -14,45 +14,47 @@ import {template} from './serverless2/lib.js';
 
 // url scheme
 //   # share=id-password : share link -> save id, open page
-//   db=id/6 page=x : view page
-//   db=id/6 page=x id=x : pass parameters
+//   ? db=id/6 page=x : view page
+//   ? db=id/6 page=x params=x : pass parameters
+
+main();
 
 async function main() {
-  const state = App();
+  const state = State();
+  window.state = state;
   function handleState() {
     const params = new URL(document.location).searchParams;
-    state.page.value = params.get('page') || 'list';
-    state.pageState().load(Object.fromEntries(params));
+    state.page(params.get('page') || 'list');
+    state.pageState().load(params);
+  }
+  function toUrl(state) {
+    const url = new URLSearchParams(state.pageState().save());
+    url.set('page', state.page());
+    return '?' + url.toString();
   }
   handleState();
   window.addEventListener('popstate', handleState);
-  setInterval(() => window.history.updateState({}, '', toUrl()), 200);
+  setInterval(() => window.history.replaceState({}, '', toUrl(state)), 200);
 
   function setPage(page, init) {
-    state.page.value = page;
+    state.page(page);
     state.pageState().load(init);
-    window.history.pushState({}, '', toUrl());
-  }
-
-  function toUrl(state) {
-    const url = new URLSearchParams(state.pageState().save());
-    url.set('page', state.page.value);
-    return url.toString();
+    window.history.pushState({}, '', toUrl(state));
   }
 }
 
-const templates = {
+/*const templates = {
   const body = template('container', [
     // how does state get shared?
-    ['search', 'change', event => state.pageState().search.value = event.target.value],
+    ['search', 'change', event => state.pageState().search(event.target.value)],
   ], (target, data) => {
     target.root
-      .attr('page', page.value)
-      .class('network', online.value);
-    if (page.value == 'list') {
+      .attr('page', page())
+      .class('network', online());
+    if (page() == 'list') {
       target.results.repeat(templates.item, state.listState.results, state.startTime, state.listState.order);
       target.order.value();
-    } else if (page.value == 'edit') {
+    } else if (page() == 'edit') {
       if (data.editState.initial) {
         data.editState.initial = false;
         target.editor.value(data.editState.baseItem.text);
@@ -75,70 +77,89 @@ const templates = {
     target.root.attr('data-id', data.id);
     target.root.text(shorten(itemById[data.id].text, 1, 50));
   }),
-};
+}; */
 
-function App() {
-  const db = await Database('foo', 'sXwEiRxN3nmAyn3QXabxPEsm7v4uOirO9oLXiAJyCa');
-  const notes = refMap(db.table('notes'));  // const notes = refMap(); db.table('notes', notes.value);
-  const now = ref(Date.now());  // slow update - perhaps used cached non-determinstic computation
-  const page = ref('');
+function State() {
+  // const db = await Database('foo', 'sXwEiRxN3nmAyn3QXabxPEsm7v4uOirO9oLXiAJyCa');
+  const notes = refMap();  // db.table('notes')
+  notes.set(334, {text: 'first document', editDate: 1000});
+  notes.set(249, {text: 'second good', editDate: 5000});
+  notes.set(18, {text: 'first SEO', editDate: 2000});
+  notes.set(22, {text: 'second SEO', editDate: 2000});
+  notes.set(30, {text: 'second bad', editDate: 2000});
+  const online = ref(false);
+  const page = ref('list');
   const pages = {
     list: ListPage(notes),
     edit: EditPage(),
   };
-  const pageState = () => pages[page.value];  // optimized away computed
-  const online = ref(false);
-  return {now, page, pageState, online};
+  const pageState = () => pages[page()];
+  return {page, pageState, online, _notes: notes};
 }
 
+const targetAge = [0.25, 1, 4, 8, 16, 32, 64, 128, 256];
 function ListPage(notes) {
   const query = ref('');
   const order = ref('priority');
-  const queryTokens = computed(() => tokenize(query.value));
-  const noteTokens = notes
+  const queryTokens = computedMap(() => tokenize(query()));
+  const noteTokens /* <word, <noteId, 1>> */ = notes
     .groupBy((noteId, note) => tokenize(note.text))
     .filter((word, notes) => notes.size < 200);
-  const matches = join([queryTokens, noteTokens], (word, query, notes) => notes)
-    .groupBy((word, notes) => notes.entries().map([noteId, unused] => [noteId, notes.length]));
-  const docCount = computed(() => notes.value.length, 60 * 1000);
-  const matchedNotes = join([matches, notes], (noteId, words, note) => {
+  const matches /* <noteId, <word, wordOccurrencesInNotes>> */ = queryTokens
+    .join([noteTokens], (word, query, notes) => notes)
+    .groupBy((word, notes) => {
+      const entries = Array.from(notes.entries());
+      return entries.map(([noteId, unused]) => [noteId, entries.length]);
+    });
+  const docCount = computed(() => notes().size, undefined, 2 * 60000);
+  const matchedNotes /* <noteId, {matchScore, note}> */ = matches.join([notes], (noteId, match, note) => {
+    const docs = docCount();
     let matchScore = 0;
-    let docs = docCount.value;
-    for (const [word, wordCount] of words.entries()) {  // wordCount can be lazy too
-      matchScore += Math.log(docs / wordCount);
+    for (const [word, occurrences] of match.entries()) {
+      matchScore += Math.log(docs / occurrences);
     }
     return {matchScore, ...note};
   });
-  // optimized away computed
-  const results = () => Array.from((query.value == '' ? notes.value : matchedNotes.value).entries());
-  const mapping = {
-    priority: computed(() => {
-      const n = now.value;
-      return results().sort(descending(x => (n - x[1].editDate) / arrayIndex(targetAge, note.priority)))
-    }),
-    newest: computed(() => results().sort(descending(x => x[1].editDate))),
-    match: computed(() => results().sort(descending(x => x[1].matchScore))),
-  };
-  const listing = () => mapping[order.value].value;  // optimized away computed
+  const nowDelayed = ref(Date.now());
+  setInterval(() => nowDelayed.set(Date.now()), 15 * 60000);
+  const listing = computed(() => {
+    let sorting;
+    const results = Array.from((query() == '' ? notes() : matchedNotes()).entries());
+    if (order() == 'priority') {
+      const n = nowDelayed();
+      sorting = x => (n - x[1].editDate) / (24 * 60 * 60 * 1000 * arrayIndex(targetAge, note.priority));
+    } else if (order() == 'newest') {
+      sorting = x => x[1].editDate;
+    } else {
+      sorting = x => x[1].matchScore;
+    }
+    return results.sort(descending(sorting));
+  });
   const {save, load} = snapshot({query, order});
-  return {query, order, listing, save, load};
+  return {query, order, listing, save, load, debug: { noteTokens, matches, queryTokens } };
 }
 
 function EditPage() {
 }
 
+const stopWords = new Set(["a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "could", "did", "do", "does", "doing", "down", "during", "each", "few", "for", "from", "further", "had", "has", "have", "having", "he", "he'd", "he'll", "he's", "her", "here", "here's", "hers", "herself", "him", "himself", "his", "how", "how's", "i", "i'd", "i'll", "i'm", "i've", "if", "in", "into", "is", "it", "it's", "its", "itself", "let's", "me", "more", "most", "my", "myself", "nor", "of", "on", "once", "only", "or", "other", "ought", "our", "ours", "ourselves", "out", "over", "own", "same", "she", "she'd", "she'll", "she's", "should", "so", "some", "such", "than", "that", "that's", "the", "their", "theirs", "them", "themselves", "then", "there", "there's", "these", "they", "they'd", "they'll", "they're", "they've", "this", "those", "through", "to", "too", "under", "until", "up", "very", "was", "we", "we'd", "we'll", "we're", "we've", "were", "what", "what's", "when", "when's", "where", "where's", "which", "while", "who", "who's", "whom", "why", "why's", "with", "would", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves"]);
 function tokenize(text) {
-  return new Map(text
+  const output = new Map();
+  const words = text
     .match(/[^ ,.'"(){}\r\n\t-]+/g)
     .map(token => token.toLowerCase())
     .filter(token => !stopWords.has(token))
-    .map(token => [stemmer(token), 1]));
+    .map(token => stemmer(token));
+  for (const word of words) {
+    output.set(word, (output.get(word) ?? 0) + 1);
+  }
+  return output;
 }
 
-function snapshot(src, defaults) {
+function snapshot(src, defaults={}) {
   const fields = Object.entries(src);
-  const save = () => Object.fromEntries(fields.map(([k,v]) => [k, v.value]));
-  const load = snapshot => fields.map(([k,v]) => v.value = snapshot[k] ?? defaults[k] ?? '');
+  const save = () => Object.fromEntries(fields.map(([k, ref]) => [k, ref()]));
+  const load = snapshot => fields.forEach(([k, ref]) => ref.set(snapshot.get(k) ?? defaults[k] ?? ''));
   return {save, load};
 }
 
@@ -146,11 +167,11 @@ function descending(fn) {
   return (a, b) => {
     const av = fn(a);
     const bv = fn(b);
-    return av < bv ? -1 : (av == bv ? 0 : 1);
+    return av < bv ? 1 : (av == bv ? 0 : -1);
   };
 }
 
-const arrayIndex(array, index) {
+function arrayIndex(array, index) {
   return array[Math.min(Math.max(index, 0), array.length - 1)];
 }
 
