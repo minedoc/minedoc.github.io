@@ -1,0 +1,54 @@
+TODO
+- integrate ref and new Database().table(notes)
+  choose which database to open (database registry?)
+- loading page
+    if share link
+      add database, go to it
+    else if deep link
+      if database available
+        state = [selectDatabase, list, (if deep-link not list, deep-link)]
+      else
+        state = [selectDatabase notFound=db]
+    else
+      if default database exists
+        state = [selectDatabase, list]
+      else
+        state = [selectDatabase]
+- diff
+
+TODO: make computed period divisible
+  they are synchronized so we don't get LCM delay
+  [0.1s, 1s, 10s, 1m, 10m, 1h]
+  how to ensure it flows smoothly?
+
+TODO: reduce need for references to app root
+  implicit binding of event handlers and data it can manipulate?
+
+TODO: ergonomics
+  this is hard to reason about and debug
+  code is all over the place especially if we have multiple pages
+
+TODO: use consistent type for note and draft object - avoid missing fields?
+
+== Thoughts ==
+
+back button
+  different action for UI back vs browser back - no it's confusing
+  never block back button - take the sensible option
+  never ask before leaving app
+
+how to map events to data
+  if button is singular on page: use app.state().id()
+    this hard codes button to the page
+  if button is repeated single-item: use e.dataset.id
+  if button is repeated multi-item: use p = e.closest('[data-id]').dataset.id
+  flat addressing with global key works
+  alternatively a path to the object that is to be edited
+
+pages
+  url is the entire state, everything not included in url is lost on refresh/nav
+  TODO: what if we want more flexibility
+    multiple page visible simultaneously
+    pages can be instantiated
+    see tablet view in android
+

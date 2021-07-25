@@ -87,13 +87,15 @@ class NotifySet {
 }
 
 const mapMethods = ref => ({
-  map(fn) { return join(ref, [], fn) },
-  filter(fn) { return join(ref, [], (k, v) => fn(k, v) ? v : DELETE) },
-  join(refs, fn) { return join(ref, refs, fn) },
+  map(fn) { return leftJoin(ref, [], fn) },
+  filter(fn) { return leftJoin(ref, [], (k, v) => fn(k, v) ? v : DELETE) },
+  leftJoin(refs, fn) { return leftJoin(ref, refs, fn) },
+  leftJoin(refs, fn) { return leftJoin(ref, refs, (...ps) => ps.every(p => p != undefined) ? fn(...ps) : DELETE) },
+  outerJoin(refs, fn) { return outerJoin([ref, ...refs], fn); },
   groupBy(fn) { return groupBy(ref, fn) },
 })
 
-function join(srcRef, joinRefs, fn) {  // {k,v} -> [{k,u}] -> (v,[u] -> w) -> k,w
+function leftJoin(srcRef, joinRefs, fn) {  // {k,v} -> [{k,u}] -> (v,...u -> w) -> k,w
   function updateJoin() {
     const src = srcRef();
     return insert(src, new ReadOnlyMap(), src.keys());
@@ -105,6 +107,25 @@ function join(srcRef, joinRefs, fn) {  // {k,v} -> [{k,u}] -> (v,[u] -> w) -> k,
     const join = joinRefs.map(x => x());
     for (const key of keys) {
       mapPut(dest, key, src.has(key) ? fn(key, src.get(key), ...join.map(j => j.get(key))) : DELETE);
+    }
+    return dest;
+  }
+  const output = computed(updateJoin, updateJoinByKey);
+  return Object.assign(output, mapMethods(output));
+}
+
+function outerJoin(refs, fn) {  // [{k,u}] -> (...u -> w) -> k,w
+  // Note: must deal with fully empty - fn(undefined, undefined)
+  function updateJoin() {
+    const src = refs.map(x => x());
+    return insert(src, new ReadOnlyMap(), new Set(src.flatMap(x => Array.from(x.keys()))));
+  }
+  function updateJoinByKey(dest, keys) {
+    insert(refs.map(x => x()), dest, keys);
+  }
+  function insert(srcs, dest, keys) {
+    for (const key of keys) {
+      mapPut(dest, key, fn(key, ...srcs.map(j => j.get(key))));
     }
     return dest;
   }

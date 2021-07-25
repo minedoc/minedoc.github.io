@@ -12,27 +12,32 @@
 <body onclick="wakelock()">
   <div class="container currentList" data-template="container">
     <div class="status"></div>
+
     <div class="page listPage">
       <div class="topBar">
-        <select class="listOrder" onchange="actions.orderChange()" data-bind="order">
-          <option value="review">Review</option>
+        <select class="listOrder" onchange="a.orderChange(this)" data-bind="order">
+          <option value="priority">Priority</option>
           <option value="recent">Recent</option>
+          <option value="match">Match</option>
         </select>
         <div class="spacer"></div>
-        <input type="text" data-bind="search" class="search" autocomplete="off" autocorrect="off" autocapitalize="false" spellcheck="false" aria-haspopup="false" placeholder="search">
+        <input type="text" data-bind="search" class="search" autocomplete="off" autocorrect="off" autocapitalize="false" spellcheck="false" placeholder="search" onkeyup="a.searchChange(this, event)">
+        <div class="spacer"></div>
+        <div class="barButton">⚙</div>
       </div>
       <div class="results" data-bind="results">
       </div>
       <div class="botBar">
-        <div class="addButton" onclick="actions.addNote()">Add</div>
+        <div class="addButton" onclick="a.addNote()">Add</div>
       </div>
     </div>
+
     <div class="page editPage">
       <div class="topBar">
-        <div class="backButton" onclick="history.back()">‹</div>
+        <div class="barButton" onclick="history.back()">‹</div>
         <div class="spacer"></div>
         <div class="id" data-bind="id"></div>
-        <select class="importance" data-bind="importance">
+        <select class="priority" data-bind="priority" oninput="a.importanceInput(this)">
           <option value="0">0d</option>
           <option value="1">1d</option>
           <option value="2">4d</option>
@@ -45,51 +50,55 @@
           <option value="10">Archive</option>
         </select>
         <div class="spacer"></div>
-        <div class="timer" data-bind="timer"></div>
+        <div class="barText" data-bind="timer"></div>
         <div class="spacer"></div>
-        <div class="relButton" onmousedown="actions.manualDiff()">𝚫</div>
+        <div class="barText">diff</div>
         <div class="spacer"></div>
-        <div class="relButton" onmousedown="actions.addNote()">+</div>
+        <div class="barText" onclick="a.addNote()">new</div>
         <div class="spacer"></div>
-        <div class="relButton" onmousedown="actions.related()">=</div>
-        <div class="spacer"></div>
-        <div class="deleteButton" onclick="actions.delete()">×</div>
+        <div class="barButton" data-bind="delete" onclick="a.deleteNote()">×</div>
       </div>
-      <textarea class="editor" autocomplete="off" spellcheck="off" autocapitalize="off" onkeydown="actions.editorKeyDown(this)" data-bind="editor">What is this text doing?</textarea>
+      <textarea
+        class="editor"
+        autocomplete="off" spellcheck="off" autocapitalize="off"
+        onkeydown="a.editorKeyDown(this, event)"
+        oninput="a.editorInput(this)"
+        data-bind="editor"></textarea>
       <div class="related" data-bind="related"></div>
       <div class="botBar sendKeys">
-        <div onclick="actions.sendKey(this)">=</div>
-        <div onclick="actions.sendKey(this)">(</div>
-        <div onclick="actions.sendKey(this)">)</div>
-        <div onclick="actions.sendKey(this)">:</div>
-        <div onclick="actions.sendKey(this)">_</div>
-        <div onclick="actions.sendKey(this)">+</div>
-        <div onclick="actions.editorDash(this)">-</div>
-        <div onclick="actions.sendKey(this)">'</div>
-        <div onclick="actions.editorCmd('undo')">↶</div>
-        <div onclick="actions.editorCmd('redo')">↷</div>
-        <div onclick="actions.editorIndent(-2)">⇦</div>
-        <div onclick="actions.editorIndent(2)">⇨</div>
+        <div onclick="a.sendKey(this)">=</div>
+        <div onclick="a.sendKey(this)">(</div>
+        <div onclick="a.sendKey(this)">)</div>
+        <div onclick="a.sendKey(this)">:</div>
+        <div onclick="a.sendKey(this)">_</div>
+        <div onclick="a.sendKey(this)">+</div>
+        <div onclick="a.editorDash(this)">-</div>
+        <div onclick="a.sendKey(this)">'</div>
+        <div onclick="a.editorUndo(this)">↶</div>
+        <div onclick="a.editorRedo(this)">↷</div>
+        <div onclick="a.editorIndent(this, false)">⇦</div>
+        <div onclick="a.editorIndent(this, true)">⇨</div>
       </div>
     </div>
+
     <div class="page diffPage">
       <div class="topBar">
         <div class="backButton" onclick="history.back()">‹</div>
       </div>
       <div class="diffHolder" data-bind="diff"></div>
       <div class="botBar">
-        <div class="diffSave" onclick="actions.diffSave()">Save</div>
+        <div class="diffSave" onclick="a.diffSave()">Save</div>
         <div class="spacer"></div>
         <div class="diffCancel" onclick="history.back()">Cancel</div>
       </div>
     </div>
   </div>
 
-  <div class="item" onclick="actions.itemClick(this)" data-template="item">
+  <div class="item" onclick="a.openItem(this)" data-template="item">
     <pre data-bind="text"></pre>
   </div>
 
-  <div onclick="actions.relatedClick(this)" data-template="related"></div>
+  <div onclick="a.openItem(this)" data-template="related"></div>
 
 <script src="diff.js"></script>
 <script type="module" src="main.js"></script>

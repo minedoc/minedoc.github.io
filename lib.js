@@ -5,12 +5,9 @@ var ProxyDom = function(element) {
   this.element = element;
   this.childs = [];
   this._text = '';
-  this._attr = {};
+  this._data = {};
   this._class = {};
 }
-ProxyDom.prototype.onChange = function(fn) {
-  this.element.addEventListener('change', fn);
-};
 ProxyDom.prototype.text = function(text) {
   if (this._text !== text) {
     this.element.innerText = text;
@@ -26,10 +23,10 @@ ProxyDom.prototype.value = function(value) {
   this.element.value = value;
   return this;
 };
-ProxyDom.prototype.attr = function(name, value) {
-  if (this._attr[name] !== value) {
-    this.element.setAttribute(name, value);
-    this._attr[name] = value;
+ProxyDom.prototype.data = function(name, value) {
+  if (this._data[name] !== value) {
+    this.element.dataset[name] = value;
+    this._data[name] = value;
   }
   return this;
 };
@@ -96,15 +93,8 @@ function template(name, render) {
   };
 };
 
-function dateAsSeconds(date) {
-  let now = Date.now();
-  let then = Date.parse(date)
-  let diff = now - then;
-  return Math.floor(diff / 1000);
-}
-
 function dateAsAge(date) {
-  let seconds = dateAsSeconds(date);
+  let seconds = Math.floor((Date.now() - date) / 1000);
   let minutes = Math.floor(seconds / 60);
   let hours = Math.floor(seconds / 60 / 60);
   let days = Math.floor(seconds / 60 / 60 / 24);
@@ -161,18 +151,14 @@ function debuggingShowErrors() {
 
 function dedup(fn) {
   var timeout = null;
-  var args = [];
-  return function(duration) {
-    args = Array.prototype.slice.call(arguments, 1);
+  return function(duration, ...args) {
     if (timeout) {
       clearTimeout(timeout);
     }
     if (duration == 0) {
       fn.apply(null, args);
     } else {
-      timeout = setTimeout(function() {
-        fn.apply(null, args);
-      }, duration);
+      timeout = setTimeout(() => fn.apply(null, args), duration);
     }
   };
 }
@@ -189,5 +175,6 @@ function wakelock() {
     wakelockVideo.play();
   }
 }
+window.wakelock = wakelock;
 
-export {template};
+export {template, dateAsAge, dedup, debuggingShowErrors};
