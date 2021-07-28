@@ -3,7 +3,7 @@ TODO
   choose which database to open (database registry?)
 - loading page
     if share link
-      add database, go to it
+      add database, database loading page, go to page
     else if deep link
       if database available
         state = [selectDatabase, list, (if deep-link not list, deep-link)]

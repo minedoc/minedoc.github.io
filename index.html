@@ -13,8 +13,24 @@
   <div class="container currentList" data-template="container">
     <div class="status"></div>
 
+    <div class="page openPage">
+      <div class="topBar">
+        <div class="barText">Open</div>
+      </div>
+      <div class="sectionTitle">Create</div>
+      <div class="newSection">
+        <input class="noteName" type="text" data-bind="noteName" placeholder="name">
+        <div class="newNotes button" onclick="a.newBook(this)">Create New</div>
+      </div>
+      <div class="sectionTitle"></div>
+      <div class="sectionTitle">Open</div>
+      <div class="openSection" data-bind="books"></div>
+    </div>
+
     <div class="page listPage">
       <div class="topBar">
+        <div class="barButton" onclick="history.back()">‹</div>
+        <div class="spacer"></div>
         <select class="listOrder" onchange="a.orderChange(this)" data-bind="order">
           <option value="priority">Priority</option>
           <option value="recent">Recent</option>
@@ -22,8 +38,6 @@
         </select>
         <div class="spacer"></div>
         <input type="text" data-bind="search" class="search" autocomplete="off" autocorrect="off" autocapitalize="false" spellcheck="false" placeholder="search" onkeyup="a.searchChange(this, event)">
-        <div class="spacer"></div>
-        <div class="barButton">⚙</div>
       </div>
       <div class="results" data-bind="results">
       </div>
@@ -49,7 +63,6 @@
           <option value="8">256d</option>
           <option value="10">Archive</option>
         </select>
-        <div class="spacer"></div>
         <div class="barText" data-bind="timer"></div>
         <div class="spacer"></div>
         <div class="barText">diff</div>
@@ -99,6 +112,13 @@
   </div>
 
   <div onclick="a.openItem(this)" data-template="related"></div>
+
+  <div class="book" data-template="book">
+    <div class="bookName" data-bind="name" onclick="a.openBook(this)"></div>
+    <div class="button" onclick="a.deleteBook(this)">delete</div>
+    <div class="button" onclick="a.renameBook(this)">rename</div>
+    <div class="button" onclick="a.shareBook(this)">share</div>
+  </div>
 
 <script src="diff.js"></script>
 <script type="module" src="main.js"></script>

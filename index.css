@@ -24,15 +24,23 @@ body {
 ::placeholder {
   color: #666;
 }
+.button {
+  padding: 0.5rem;
+  background-color: #666;
+  border-radius: 3px;
+  text-align: center;
+  cursor: pointer;
+}
 .page {
   display: flex;
   flex-direction: column;
 }
+.openPage,
 .listPage,
-.editPage,
-.diffPage {
+.editPage {
   display: none;
 }
+[data-page="open"] .openPage,
 [data-page="list"] .listPage,
 [data-page="edit"] .editPage {
   display: flex;
@@ -78,15 +86,14 @@ body {
   color: #999;
 }
 select {
-  background-color: inherit;
   border: none;
   padding: 0 1rem;
-  -webkit-appearance: none;
-  outline: none;
-  color: inherit;
+  appearance: none;
 }
-option {
-  background-color: #292e33;
+input, option, select, textarea {
+  background-color: inherit;
+  color: inherit;
+  outline: none;
 }
 .priority {
   flex: 1;
@@ -95,12 +102,8 @@ option {
   border: 0px none;
   margin: 0 0 0 0.75rem;
   padding: 0;
-  outline: none;
-  -webkit-appearance: none;
   width: 1px;  /* necessary to prevent overflow! */
   flex: 1 1 auto;
-  background-color: inherit;
-  color: inherit;
 }
 .listOrder.searchEmpty option[value="match"] {
   display: none;
@@ -134,8 +137,6 @@ option {
   margin: 0;
   user-select: text;
   font-size: inherit;
-  background-color: inherit;
-  color: inherit;
   line-height: inherit;
 }
 .noHighlight::selection {
@@ -202,4 +203,46 @@ del {
   line-height: 1.5rem;
   padding: 0 0.5rem;
   font-family: monospace;
+}
+
+/* open */
+.sectionTitle {
+  padding: 1rem 1rem 0.5rem;
+}
+.newSection {
+  padding: 1rem;
+  display: flex;
+}
+.noteName {
+  border: 1px solid #666;
+  padding: 0.5rem;
+  flex: 1;
+}
+.newNotes {
+  flex: 0;
+  margin: 1px 1px 1px 1rem;
+  flex-basis: 6rem;
+}
+.openSection {
+  flex: 1;
+  overflow-y: scroll;
+}
+.book {
+  display: flex;
+  align-items: center;
+  border-top: 1px solid #666;
+  padding: 0 1rem 0 0;
+}
+.bookName {
+  flex: 1;
+  padding: 2rem 1rem;
+  cursor: pointer;
+}
+.bookName:hover {
+  background-color: #333;
+}
+.book .button {
+  flex: 0;
+  margin: 1.5rem 0 1.5rem 1rem;
+  flex-basis: 6rem;
 }

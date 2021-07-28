@@ -7,25 +7,21 @@ async function main() {
   // const db = await Database('foo', 'sXwEiRxN3nmAyn3QXabxPEsm7v4uOirO9oLXiAJyCa');
   const app = window.app = App();
   const params = new URL(document.location).searchParams;
-  // if list page - go there, else add a list page as backup
-  if (params.get('page') == 'list') {
-    app.page.set('list');
-    app.state().load(params);
-  } else {
-    window.history.replaceState({}, '', '?' + new URLSearchParams({ page: 'list', order: 'priority', query: ''}));
-    app.page.set(params.get('page') || 'list');
-    app.state().load(params);
-    window.history.pushState({}, '', toUrl(app));
+  window.history.replaceState({}, '', '?' + new URLSearchParams({ page: 'open' }));
+  window.history.pushState({}, '', '?' + new URLSearchParams({ page: 'list', order: 'priority' }));
+  const startPage = params.get('page');
+  if (startPage && startPage != 'list') {
+    window.history.pushState({}, '', '?' + params);
   }
+  app.page.set(params.get('page') || 'list');
+  app.state().load(params);
 
   window.addEventListener('popstate', () => {
     if (app.page() == 'edit' && app.state().note()) {
-      if (app.state().note().text.length == 0) {
-        app.drafts.delete(app.state().id());
-      } else {
-        app.notes.set(app.state().id(), app.pages.edit.note());
-        app.drafts.delete(app.state().id());
+      if (app.state().note().text.length != 0) {
+        app.notes.set(app.state().id(), app.state().note());
       }
+      app.drafts.delete(app.state().id());
     }
     const params = new URL(document.location).searchParams;
     app.page.set(params.get('page'));
@@ -86,7 +82,7 @@ function Actions(app) {
     },
     deleteNote(e) {
       app.notes.delete(app.pages.edit.id());
-      app.drafts.set(app.pages.edit.id(), {text: ''});  // TODO: hack fix popstate
+      app.drafts.delete(app.pages.edit.id());
       history.back();
     },
     editorInput(e) {
@@ -157,10 +153,12 @@ function Actions(app) {
 }
 
 const Template = (() => {
-  const body = template('container', (target, {page, state, network}) => {
+  const body = template('container', (target, {bookList, page, state, network}) => {
     target.root.data('page', page()).class('network', network());
     const s = state();
-    if (page() == 'list') {
+    if (page() == 'open') {
+      target.books.repeat(book, bookList());
+    } else if (page() == 'list') {
       target.results.repeat(item, s.listing());
       target.search.value(s.search());
       target.order.value(s.order()).class('searchEmpty', s.search() == '');
@@ -173,25 +171,33 @@ const Template = (() => {
       target.related.repeat(related, s.related());
     }
   });
-  const item = template('item', function(target, [id, {read, draft, note: {text}}]) {
+  const item = template('item', (target, [id, {read, draft, note: {text}}]) => {
     target.root.data('id', id).class('draft', draft).class('read', read);
     target.text.text(shorten(text, 3, 200));
   });
-  const related = template('related', function(target, [id, {note: {text}}]) {
+  const related = template('related', (target, [id, {note: {text}}]) => {
     target.root.data('id', id);
     target.root.text(shorten(text, 1, 50));
+  });
+  const book = template('book', (target, [id, {displayName}]) => {
+    target.root.data('id', id);
+    target.name.text(displayName);
   });
   return body;
 }) ();
 
 function App() {
+  const books = localStorageRefMap('books');
+    // app.books.set('what', {displayName: 'david-notes', dbName: 'foo', connection: 'foobar', lastOpenTime: Date.now()})
+  const bookList = computed(() => Array.from(books().entries()).sort(descending(x => x.lastOpenTime)));
+
   const notes = refMap();  // db.table('notes')
   notes.set('bG9ONjf27mQ1', {text: 'first document oldest', editDate: 1000, priority: 0});
   notes.set('249', {text: 'second good newest', editDate: 5000, priority: 1});
   notes.set('18', {text: 'first SEO', editDate: 2000, priority: 1});
   notes.set('22', {text: 'second SEO', editDate: 2000, priority: 1});
   notes.set('30', {text: 'second bad', editDate: 2000, priority: 1});
-  const drafts = refLocalStorageMap('drafts');
+  const drafts = localStorageRefMap('drafts');
   Array.from(drafts().entries()).forEach(([k, v]) => v.text == '' ? drafts.delete(k) : 0);
   const read = refMap();
   const mergedNotes = notes.outerJoin([drafts, read], (id, note, draft, read) => {
@@ -208,9 +214,14 @@ function App() {
   const pages = {
     list: ListPage(mergedNotes),
     edit: EditPage(mergedNotes),
+    open: OpenPage(),
   };
   const state = () => pages[page()];
-  return {page, state, network, pages, notes, drafts, read, /* debug */ mergedNotes };
+  return {books, bookList, page, state, network, pages, notes, drafts, read, /* debug */ mergedNotes };
+}
+
+function OpenPage() {
+  return {...snapshot({})};
 }
 
 const targetAge = [0.25, 1, 4, 8, 16, 32, 64, 128, 256];
@@ -353,33 +364,52 @@ function editorHeader(editor, start) {
   return prevLine.split(/[^ *-]/, 1)[0];
 }
 
-function refLocalStorageMap(name) {
-  const map = refMap();
-  const mapSet = map.set;
-  const mapDelete = map.delete;
-  const saver = dedup(() => localStorage.setItem(name, mapStr));
-  const save = () => {
-    mapStr = JSON.stringify(Array.from(map().entries()));
-    saver(500);
-  }
-  var mapStr = '[]';
-  map.set = (k, v) => { mapSet(k, v); save() };
-  map.delete = k => { mapDelete(k); save() };
-  const load = str => {
-    if (str != null) {
-      map.clear();
-      JSON.parse(str).forEach(([key, val]) => mapSet(key, val));
-      mapStr = str;
+function localStorageVar(name, ctor, params) {
+  var valStr;
+  const value = ctor();
+  const saver = dedup(() => localStorage.setItem(name, valStr));
+  const oldMethods = {};
+  params.methods.forEach(method => {
+    const fn = oldMethods[method] = value[method];
+    value[method] = (...val) => {
+      fn(...val);
+      valStr = params.saveToString(value);
+      saver(500);
+    };
+  });
+  const load = update => {
+    if (valStr != update) {
+      valStr = update;
+      params.loadFromString(oldMethods, update);
     }
   };
   load(localStorage.getItem(name));
   window.addEventListener('storage', e => {
-    if (e.storageArea == localStorage && e.key == name && mapStr != e.newValue) {
+    if (e.storageArea == localStorage && e.key == name) {
       load(e.newValue);
     }
     render();
   });
-  return map;
+  return value;
+}
+
+function localStorageRefMap(name) {
+  return localStorageVar(name, refMap, {
+    saveToString: val => JSON.stringify(Array.from(val().entries())),
+    loadFromString: (supr, str) => {
+      supr.clear();
+      JSON.parse(str).forEach(([key, val]) => supr.set(key, val));
+    },
+    methods: ['set', 'delete', 'clear'],
+  });
+}
+
+function localStorageRef(name) {
+  return localStorageVar(name, ref, {
+    saveToString: val => JSON.stringify(val()),
+    loadFromString: (supr, str) => supr.set(JSON.parse(str)),
+    methods: ['set'],
+  });
 }
 
 const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_';
