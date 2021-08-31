@@ -93,7 +93,7 @@ const mapMethods = ref => ({
   leftJoin(refs, fn) { return leftJoin(ref, refs, (...ps) => ps.every(p => p != undefined) ? fn(...ps) : DELETE) },
   outerJoin(refs, fn) { return outerJoin([ref, ...refs], fn); },
   groupBy(fn) { return groupBy(ref, fn) },
-})
+});
 
 function leftJoin(srcRef, joinRefs, fn) {  // {k,v} -> [{k,u}] -> (v,...u -> w) -> k,w
   function updateJoin() {
