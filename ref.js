@@ -1,164 +1,258 @@
 // design choices
-//   pull driven
+//   mark dirty, compute on demand
 //   no early stopping - requires push based + equality compare
 //   no manual recompute() - getting consistency is hard (cant use integer wave, would need to eager evaluation?)
 
 const computeStack = [];
 const DELETE = Symbol('DELETE');
 const FULL_UPDATE = Symbol('FULL_UPDATE');
+const PARTIAL_UPDATE = Symbol('PARTIAL_UPDATE');
+const UP_TO_DATE = Symbol('UP_TO_DATE');
+var debug = false;
+var log = args => unused => 0;
 
-function baseRef(constructor, methods) {
+function toggleDebug() {
+  debug = !debug;
+  log = debug ? (...args) => console.log.bind(console, ...args.map(arg => deepClone(arg))) : args => unused => 0;
+}
+
+function baseRef(constructor, extend) {
   return function(init) {
     const outputs = new NotifySet();
     let value = constructor(init);
-    const get = () => {
+    const ref = () => {
       outputs.saveCaller();
       return value;
     };
-    const set = val => {
+    ref.set = val => {
+      log('set', val)();
       value = constructor(val);
       outputs.notify(FULL_UPDATE);
     };
-    return Object.assign(get, {set}, methods(get, outputs));
+    return extend(ref, outputs);
   };
 }
 
-const ref = baseRef(init => freeze(init), (get, outputs) => null);
-const refMap = baseRef(init => new ReadOnlyMap(init), (ref, outputs) => ({
-  ...mapMethods(ref),
-  set(key, value) { outputs.notify(key); return Map.prototype.set.call(ref(), key, freeze(value)); },
-  delete(key) { outputs.notify(key); return Map.prototype.delete.call(ref(), key); },
-  clear() { outputs.notify(FULL_UPDATE); return Map.prototype.clear.call(ref()); },
+const ref = baseRef(init => freeze(init), (ref, outputs) => ref);
+const refMap = baseRef(init => new ReadOnlyMap(init), (ref, outputs) => Object.assign(withRefMapMethods(ref), {
+  set(key, value) { log('map set', key, value)(); Map.prototype.set.call(ref(), key, freeze(value)); outputs.notify(new Set([key])); return value; },
+  delete(key) { log('map delete', key)(); Map.prototype.delete.call(ref(), key); outputs.notify(new Set([key])); },
+  clear() { log('map clear')(); Map.prototype.clear.call(ref()); outputs.notify(FULL_UPDATE); },
 }));
 
 function computed(update, updateKeys, period=0) {
   let value = undefined;
-  let dirty = true;
-  let keys = [];
+  let state = FULL_UPDATE;
+  const modifiedKeys = new Set();
   const outputs = new NotifySet();
-  const notify = debounce(period, key => {  // TODO: would like to check !dirty but doesn't work
-    if (updateKeys === undefined || key === FULL_UPDATE) {
-      dirty = true;
+  // TODO: verify debounce works
+  const notify = debounce(period, keys => {  // TODO: would like to check !dirty but doesn't work
+    if (updateKeys === undefined || keys === FULL_UPDATE) {
+      state = FULL_UPDATE;
       outputs.notify(FULL_UPDATE);
     } else {
-      keys.push(key);
-      outputs.notify(key);
+      if (state != FULL_UPDATE) {
+        state = PARTIAL_UPDATE;
+      }
+      if (keys !== PARTIAL_UPDATE) {
+        for (const key of keys) {
+          modifiedKeys.add(key);
+        }
+      }
+      outputs.notify(PARTIAL_UPDATE);
     }
   });
   return () => {
     outputs.saveCaller();
-    if (dirty || keys.length > 0) {
+    if (state == FULL_UPDATE || state == PARTIAL_UPDATE) {
+      var childKeys = undefined;
       computeStack.push(notify);
+      if (debug) { console.group(); }
       try {
-        if (dirty) {
-          value = update(); // console.log('update', value);
-        } else {
-          updateKeys(value, keys); // console.log('updateKeys', keys, value);
+        if (state == FULL_UPDATE) {
+          value = update();
+        } else if (state == PARTIAL_UPDATE) {
+          childKeys = updateKeys(value, () => modifiedKeys);
         }
       } finally {
         computeStack.pop();
+        if (debug) { console.groupEnd(); }
       }
-      dirty = false;
-      keys.length = 0;
+      if (childKeys) {  // childKeys may equal modifiedKeys, cannot clear modifiedKeys
+        outputs.notify(childKeys);
+      }
+      modifiedKeys.clear();
+      state = UP_TO_DATE;
     }
     return value;
   };
 }
 
-function computedMap(fn, period=0) {
-  const output = computed(fn, undefined, period);
-  return Object.assign(output, mapMethods(output));
-}
+const computedMap = fn => withRefMapMethods(computed(fn));
 
-export {ref, refMap, computed, computedMap, DELETE};
+export {ref, refMap, computed, computedMap, DELETE, toggleDebug};
 
 class NotifySet {
   constructor() {
     this.clients = new IterableWeakSet();
   }
-  saveCaller(x) {
+  saveCaller() {
     if(computeStack.length > 0) {
       this.clients.add(computeStack[computeStack.length - 1]);
     }
   }
   notify(value) {
-    this.clients.forEach(fn => fn(value));
+    for (const fn of this.clients) {
+      fn(value);
+    }
   }
 }
 
-const mapMethods = ref => ({
+const withRefMapMethods = ref => Object.assign(ref, {
   map(fn) { return leftJoin(ref, [], fn) },
-  filter(fn) { return leftJoin(ref, [], (k, v) => fn(k, v) ? v : DELETE) },
+  filter(fn) { return filter(ref, fn) },
   leftJoin(refs, fn) { return leftJoin(ref, refs, fn) },
-  leftJoin(refs, fn) { return leftJoin(ref, refs, (...ps) => ps.every(p => p != undefined) ? fn(...ps) : DELETE) },
   outerJoin(refs, fn) { return outerJoin([ref, ...refs], fn); },
   groupBy(fn) { return groupBy(ref, fn) },
 });
 
+function filter(srcRef, fn) {  // {k,v} -> (k, v -> bool) -> {k, v}
+  function updateFilter() {
+    const src = srcRef();
+    const out = new ReadOnlyMap();
+    insert(src, out, src.keys());
+    return out;
+  }
+  function updateFilterByKey(dest, keyFn) {
+    const src = srcRef();
+    const keys = keyFn();
+    return insert(src, dest, keys);
+  }
+  function insert(src, dest, keys) {
+    log('filter start', new Map(dest), fn)();
+    for (const key of keys) {
+      if (src.has(key)) {
+        const value = src.get(key);
+        log({key, src, inputs: [key, value], output: fn(key, value)})();
+        mapPut(dest, key, fn(key, value) ? value : DELETE);
+      } else {
+        log({key, src, output: 'parent gone DELETE'})();
+        mapPut(dest, key, DELETE);
+      }
+    }
+    log('filter done', new Map(dest))();
+    return keys;
+  }
+  return withRefMapMethods(computed(updateFilter, updateFilterByKey));
+}
+
 function leftJoin(srcRef, joinRefs, fn) {  // {k,v} -> [{k,u}] -> (v,...u -> w) -> k,w
   function updateJoin() {
     const src = srcRef();
-    return insert(src, new ReadOnlyMap(), src.keys());
+    const out = new ReadOnlyMap();
+    insert(src, out, src.keys());
+    return out;
   }
-  function updateJoinByKey(dest, keys) {
-    insert(srcRef(), dest, keys);
+  function updateJoinByKey(dest, keyFn) {
+    const src = srcRef();
+    const keys = keyFn();
+    return insert(src, dest, keys);
   }
   function insert(src, dest, keys) {
     const join = joinRefs.map(x => x());
+    log('leftJoin start', new Map(dest), fn)();
     for (const key of keys) {
-      mapPut(dest, key, src.has(key) ? fn(key, src.get(key), ...join.map(j => j.get(key))) : DELETE);
+      if (src.has(key)) {
+        log({key, inputs: [src.get(key), ...join.map(j => j.get(key))], output: fn(key, src.get(key), ...join.map(j => j.get(key)))})();
+        mapPut(dest, key, fn(key, src.get(key), ...join.map(j => j.get(key))));
+      } else {
+        log({key, src, output: 'parent gone DELETE'})();
+        mapPut(dest, key, DELETE);
+      }
     }
-    return dest;
+    log('leftJoin done', new Map(dest))();
+    return keys;
   }
-  const output = computed(updateJoin, updateJoinByKey);
-  return Object.assign(output, mapMethods(output));
+  return withRefMapMethods(computed(updateJoin, updateJoinByKey));
 }
 
 function outerJoin(refs, fn) {  // [{k,u}] -> (...u -> w) -> k,w
   // Note: must deal with fully empty - fn(undefined, undefined)
   function updateJoin() {
     const src = refs.map(x => x());
-    return insert(src, new ReadOnlyMap(), new Set(src.flatMap(x => Array.from(x.keys()))));
+    const out = new ReadOnlyMap();
+    insert(src, out, new Set(src.flatMap(x => Array.from(x.keys()))));
+    return out;
   }
-  function updateJoinByKey(dest, keys) {
-    insert(refs.map(x => x()), dest, keys);
+  function updateJoinByKey(dest, keyFn) {
+    const srcs = refs.map(x => x());
+    const keys = keyFn();
+    return insert(srcs, dest, keys);
   }
   function insert(srcs, dest, keys) {
+    log('outerJoin start', new Map(dest), fn)();
     for (const key of keys) {
+      log({key, inputs: srcs.map(j => j.get(key)), output: fn(key, ...srcs.map(j => j.get(key)))})();
       mapPut(dest, key, fn(key, ...srcs.map(j => j.get(key))));
     }
-    return dest;
+    log('outerJoin done', new Map(dest))();
+    return keys;
   }
-  const output = computed(updateJoin, updateJoinByKey);
-  return Object.assign(output, mapMethods(output));
+  return withRefMapMethods(computed(updateJoin, updateJoinByKey));
 }
 
 function groupBy(srcRef, fn) {  // k,v -> (k,v -> Map<j,u>) -> j,Map<k,u>
   const keyMap = new Map();
-  const keyMapDelete = key => { const a = keyMap.get(key); keyMap.delete(key); return a || []; };
-  const keyMapSet = (key, value) => { keyMap.set(key, value); return value };
   function updateGroupby() {
     const src = srcRef();
+    const out = new ReadOnlyMap();
     keyMap.clear();
-    return insert(src, new ReadOnlyMap(), src.keys());
+    insert(src, out, src.keys());
+    return out;
   }
-  function updateGroupbyByKey(dest, keys) {
-    insert(srcRef(), dest, keys);
+  function updateGroupbyByKey(dest, keyFn) {
+    const src = srcRef();
+    const keys = keyFn();
+    return insert(src, dest, keys);
   }
   function insert(src, dest, keys) {
-    const get = key => dest.get(key) ?? mapPut(dest, key, new Map());
+    log('groupBy start', new Map(dest), fn)();
+    const difference = new Set();
     for (const key of keys) {
-      for (const newKey of keyMapDelete(key)) {
-        get(newKey).delete(key);
+      const toDeleteKeys = keyMap.get(key) || new Set();
+      const toAdd = src.has(key) ? fn(key, src.get(key)) : new Map();
+      const toAddKeys = new Set(toAdd.keys());
+      keyMap.set(key, toAddKeys);
+
+      // TODO: optimize this to not do duplication of work
+      for (const deleteKey of toDeleteKeys) {
+        if (!toAddKeys.has(deleteKey)) {
+          difference.add(deleteKey);
+          log('delete', {key, deleteKey})();
+          const inner = dest.get(deleteKey);
+          if (inner.size == 1) {
+            Map.prototype.delete.call(dest, deleteKey);
+          } else {
+            inner.delete(key);
+          }
+        }
       }
-      for (const [newKey, newValue] of src.has(key) ? keyMapSet(key, fn(key, src.get(key))) : []) {
-        get(newKey).set(key, newValue);
+      for (const [addKey, addValue] of toAdd) {
+        if (!toDeleteKeys.has(addKey)) {
+          difference.add(addKey);
+          log('add', {key, addKey, addValue})();
+          if (dest.has(addKey)) {
+            dest.get(addKey).set(key, addValue);
+          } else {
+            mapPut(dest, addKey, new Map()).set(key, addValue);
+          }
+        }
       }
     }
-    return dest;
+    log('groupBy done', new Map(dest), difference)();
+    return difference;
   }
-  const output = computed(updateGroupby, updateGroupbyByKey);
-  return Object.assign(output, mapMethods(output));
+  return withRefMapMethods(computed(updateGroupby, updateGroupbyByKey));
 }
 
 // utility
@@ -197,15 +291,17 @@ class IterableWeakSet {
       this.weakSet.add(item);
     }
   }
-  forEach(fn) {
+  [Symbol.iterator]() {
+    const values = [];
     this.setWeak.forEach(x => {
       const value = x.deref();
       if (value) {
-        fn(value);
+        values.push(value);
       } else {
         this.setWeak.delete(x);
       }
     });
+    return values[Symbol.iterator]();
   }
 }
 
@@ -230,5 +326,31 @@ function debounce(period, fn) {
         saved.push(param);
       }
     };
+  }
+}
+
+function deepClone(x) {
+  if (typeof x == 'object') {
+    if (x instanceof Map) {
+      const out = new Map();
+      for (const [key, value] of x) {
+        out.set(deepClone(key), deepClone(value));
+      }
+      return out;
+    } else if (x instanceof Set) {
+      const out = new Set();
+      for (const key of x) {
+        out.add(deepClone(key));
+      }
+      return out;
+    } else {
+      const out = x instanceof Array ? [] : {};
+      for (const [key, value] of Object.entries(x)) {
+        out[key] = deepClone(value);
+      }
+      return out;
+    }
+  } else {
+    return x;
   }
 }
