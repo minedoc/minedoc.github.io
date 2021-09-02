@@ -213,7 +213,7 @@ del {
   padding: 1rem;
   display: flex;
 }
-.noteName {
+.inputText {
   border: 1px solid #666;
   padding: 0.5rem;
   flex: 1;
@@ -228,10 +228,12 @@ del {
   overflow-y: scroll;
 }
 .book {
+  padding: 0 1rem 0 0;
+  border-top: 1px solid #666;
+}
+.bookRow {
   display: flex;
   align-items: center;
-  border-top: 1px solid #666;
-  padding: 0 1rem 0 0;
 }
 .bookName {
   flex: 1;
@@ -241,8 +243,18 @@ del {
 .bookName:hover {
   background-color: #333;
 }
-.book .button {
+.bookRow .button {
   flex: 0;
   margin: 1.5rem 0 1.5rem 1rem;
   flex-basis: 6rem;
+}
+.bookShare {
+  margin: 0 0 0 1rem;
+  flex: 1;
+}
+.bookRowShare {
+  display: none;
+}
+.bookShowShare .bookRowShare {
+  display: flex;
 }

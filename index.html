@@ -19,7 +19,7 @@
       </div>
       <div class="sectionTitle">Create</div>
       <div class="newSection">
-        <input class="noteName" type="text" data-bind="noteName" placeholder="name">
+        <input class="noteName inputText" type="text" data-bind="noteName" placeholder="name">
         <div class="newNotes button" onclick="a.newBook(this)">Create New</div>
       </div>
       <div class="sectionTitle"></div>
@@ -114,10 +114,15 @@
   <div onclick="a.openItem(this)" data-template="related"></div>
 
   <div class="book" data-template="book">
-    <div class="bookName" data-bind="name" onclick="a.openBook(this)"></div>
-    <div class="button" onclick="a.deleteBook(this)">delete</div>
-    <div class="button" onclick="a.renameBook(this)">rename</div>
-    <div class="button" onclick="a.shareBook(this)">share</div>
+    <div class="bookRow">
+      <div class="bookName" data-bind="name" onclick="a.openBook(this)"></div>
+      <div class="button" onclick="a.deleteBook(this)">delete</div>
+      <div class="button" onclick="a.renameBook(this)">rename</div>
+      <div class="button" onclick="a.shareBook(this)">share</div>
+    </div>
+    <div class="bookRow bookRowShare">
+      <input class="bookShare inputText" type="text" data-bind="shareLink" onclick="a.shareCopy(this)"></input>
+    </div>
   </div>
 
 <script src="diff.js"></script>

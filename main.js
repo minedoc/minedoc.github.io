@@ -1,12 +1,32 @@
-// import {Database} from './serverless2/database.js';
+import {Database} from './serverless2/database.js';
 import {template, dateAsAge, dedup, debuggingShowErrors} from './lib.js';
-import {ref, refMap, computed, computedMap, DELETE} from './ref.js';
+import {ref, refMap, computed, computedMap, DELETE, toggleDebug} from './ref.js';
 
+debuggingShowErrors();  // TODO: remove
+// toggleDebug();  // TODO: remove
+
+var render;
 async function main() {
-  debuggingShowErrors();  // TODO: remove
-  // const db = await Database('foo', 'sXwEiRxN3nmAyn3QXabxPEsm7v4uOirO9oLXiAJyCa');
   const app = window.app = App();
+  handleURL(app);
+
+  const renderer = Template(app);
+  document.body.appendChild(renderer.dom);
+  window.a = Actions(app);
+  render = () => renderer.update(app);
+  openDefaultBook(app);
+}
+
+function handleURL(app) {
   const params = new URL(document.location).searchParams;
+  const hash = new URL(document.location).hash;
+  const sharePrefix = '#share=';
+  if (hash.startsWith(sharePrefix)) {
+    const bookId = randomChars(5);
+    const displayName = prompt('name of notes', 'notes');
+    const connection = hash.substring(sharePrefix.length);
+    app.books.set(bookId, {displayName, connection, lastOpenTime: Date.now()});
+  }
   window.history.replaceState({}, '', '?' + new URLSearchParams({ page: 'open' }));
   window.history.pushState({}, '', '?' + new URLSearchParams({ page: 'list', order: 'priority' }));
   const startPage = params.get('page');
@@ -18,10 +38,16 @@ async function main() {
 
   window.addEventListener('popstate', () => {
     if (app.page() == 'edit' && app.state().note()) {
-      if (app.state().note().text.length != 0) {
-        app.notes.set(app.state().id(), app.state().note());
+      const note = app.state().note();
+      const id = app.state().id();
+      if (note.text.length != 0) {
+        if (id.startsWith('draft-')) {
+          app.table.insert(note);
+        } else {
+          app.table.update(id, note);
+        }
       }
-      app.drafts.delete(app.state().id());
+      app.drafts.delete(id);
     }
     const params = new URL(document.location).searchParams;
     app.page.set(params.get('page'));
@@ -29,11 +55,6 @@ async function main() {
     render();
   });
   setInterval(() => window.history.replaceState({}, '', toUrl(app)), 500);
-
-  const renderer = Template(app);
-  document.body.appendChild(renderer.dom);
-  window.a = Actions(app);
-  return () => renderer.update(app);
 }
 
 function toUrl(app) {
@@ -49,6 +70,34 @@ function navigate(app, page, params) {
 
 function Actions(app) {
   return {
+    openBook(e) {
+      const id = e.closest('[data-id]').dataset.id;
+      openBook(id, app);
+      navigate(app, 'list', {});
+    },
+    renameBook(e) {
+      const id = e.closest('[data-id]').dataset.id;
+      const book = app.books().get(id);
+      const displayName = prompt('rename ' + book.displayName);
+      if (displayName && displayName.length > 0) {
+        app.books.set(id, {...book, displayName});
+      }
+      render();
+    },
+    deleteBook(e) {
+      const id = e.closest('[data-id]').dataset.id;
+      app.books.delete(id);
+      render();
+    },
+    shareBook(e) {
+      e.closest('.book').classList.toggle('bookShowShare');
+      setTimeout(() => {
+      }, 500);
+    },
+    shareCopy(e) {
+      e.setSelectionRange(0, e.value.length);
+      document.execCommand('copy');
+    },
     addNote() {
       const id = 'draft-' + randomChars(5);
       app.drafts.set(id, {text: '', priority: 3, editDate: Date.now()});
@@ -81,7 +130,7 @@ function Actions(app) {
       render();
     },
     deleteNote(e) {
-      app.notes.delete(app.pages.edit.id());
+      app.table.delete(app.pages.edit.id());
       app.drafts.delete(app.pages.edit.id());
       history.back();
     },
@@ -163,12 +212,18 @@ const Template = (() => {
       target.search.value(s.search());
       target.order.value(s.order()).class('searchEmpty', s.search() == '');
     } else if (page() == 'edit') {
-      const note = s.note();  // TODO: note not found - show error message
-      target.id.text(note.draft ? 'draft' : '');
-      target.editor.value(note.text);
-      target.priority.value(note.priority);
-      target.timer.text(dateAsAge(s.editStartTime()));
-      target.related.repeat(related, s.related());
+      const note = s.note();
+      if (note != undefined) {
+        target.id.text(note.draft ? 'draft' : '');
+        target.editor.value(note.text);
+        target.priority.value(note.priority);
+        target.timer.text(dateAsAge(s.editStartTime()));
+        target.related.repeat(related, s.related());
+      } else {
+        target.id.text('deleted');
+        target.editor.value('this note has been deleted');
+        target.related.repeat(related, []);
+      }
     }
   });
   const item = template('item', (target, [id, {read, draft, note: {text}}]) => {
@@ -179,27 +234,49 @@ const Template = (() => {
     target.root.data('id', id);
     target.root.text(shorten(text, 1, 50));
   });
-  const book = template('book', (target, [id, {displayName}]) => {
+  const book = template('book', (target, [id, {displayName, connection}]) => {
     target.root.data('id', id);
     target.name.text(displayName);
+    target.shareLink.value(window.location.origin + window.location.pathname + '#share=' + connection);
   });
   return body;
 }) ();
 
+function openDefaultBook(app) {
+  const books = app.bookList();
+  if (books.length > 0) {
+    openBook(books[0][0], app);
+  }
+}
+
+var closeDatabase = unused => 0;
+async function openBook(id, app) {
+  closeDatabase();
+  const book = app.books().get(id);
+  app.books.set(id, {...book, lastOpenDate: Date.now()});
+  const db = await Database('note-' + id, book.connection);
+  const table = db.table('notes');
+  const handler = {set: render, delete: render};
+  app.table = table;  // TODO: get rid of this hack
+  app.notes.clear();
+  table.forward(app.notes);
+  table.forward(handler);
+  closeDatabase = () => {
+    table.unforward(app.notes);
+    table.unforward(handler);
+  };
+  render();
+}
+
 function App() {
   const books = localStorageRefMap('books');
-    // app.books.set('what', {displayName: 'david-notes', dbName: 'foo', connection: 'foobar', lastOpenTime: Date.now()})
-  const bookList = computed(() => Array.from(books().entries()).sort(descending(x => x.lastOpenTime)));
+  const bookList = computed(() => Array.from(books().entries()).sort(descending(x => x[1].lastOpenTime)));
 
-  const notes = refMap();  // db.table('notes')
-  notes.set('bG9ONjf27mQ1', {text: 'first document oldest', editDate: 1000, priority: 0});
-  notes.set('249', {text: 'second good newest', editDate: 5000, priority: 1});
-  notes.set('18', {text: 'first SEO', editDate: 2000, priority: 1});
-  notes.set('22', {text: 'second SEO', editDate: 2000, priority: 1});
-  notes.set('30', {text: 'second bad', editDate: 2000, priority: 1});
+  const notes = refMap();
   const drafts = localStorageRefMap('drafts');
   Array.from(drafts().entries()).forEach(([k, v]) => v.text == '' ? drafts.delete(k) : 0);
   const read = refMap();
+  const selectedBook = ref('foo');
   const mergedNotes = notes.outerJoin([drafts, read], (id, note, draft, read) => {
     if (draft) {
       return {note: draft, draft: true, read: !!read};
@@ -217,7 +294,7 @@ function App() {
     open: OpenPage(),
   };
   const state = () => pages[page()];
-  return {books, bookList, page, state, network, pages, notes, drafts, read, /* debug */ mergedNotes };
+  return {books, bookList, page, state, network, pages, notes, drafts, read, table: undefined, /* debug */ mergedNotes };
 }
 
 function OpenPage() {
@@ -234,14 +311,14 @@ function ListPage(notes) {
   const listing = computed(() => {
     let sorting;
     const results = Array.from((search() == '' ? notes() : matchedNotes()).entries());
-    const diffScore = x => x[1].draft ? 1000000000000 : 0;
+    const draftScore = x => x[1].draft ? 1000000000000 : 0;
     if (order() == 'priority') {
       const now = Date.now();
-      sorting = x => diffScore(x) + (now - x[1].note.editDate) / (24 * 60 * 60 * 1000 * arrayIndex(targetAge, x[1].note.priority));
+      sorting = x => draftScore(x) + (now - x[1].note.editDate) / (24 * 60 * 60 * 1000 * arrayIndex(targetAge, x[1].note.priority));
     } else if (order() == 'recent') {
-      sorting = x => diffScore(x) + x[1].note.editDate;
+      sorting = x => draftScore(x) + x[1].note.editDate;
     } else if (order() == 'match') {
-      sorting = x => diffScore(x) + x[1].matchScore;
+      sorting = x => draftScore(x) + x[1].matchScore;
     }
     return results.sort(descending(sorting));
   });
@@ -274,8 +351,7 @@ function noteSearch(notes, searchTokens, prefix) {
     .leftJoin([noteTokens], (word, search, notes) => notes)
     .filter((word, notes) => notes)
     .groupBy((word, notes) => {
-      const entries = Array.from(notes.entries());
-      return entries.map(([noteId, unused]) => [noteId, entries.length]);
+      return new Map(Array.from(notes.entries()).map(([noteId, unused]) => [noteId, notes.size]));
     });
   const docCount = computed(() => notes().size, undefined, 2 * 60000);
   const matchedNotes /* <noteId, {matchScore, note}> */ = matches.leftJoin([notes], (noteId, match, note) => {
@@ -387,8 +463,8 @@ function localStorageVar(name, ctor, params) {
   window.addEventListener('storage', e => {
     if (e.storageArea == localStorage && e.key == name) {
       load(e.newValue);
+      render();
     }
-    render();
   });
   return value;
 }
@@ -396,9 +472,9 @@ function localStorageVar(name, ctor, params) {
 function localStorageRefMap(name) {
   return localStorageVar(name, refMap, {
     saveToString: val => JSON.stringify(Array.from(val().entries())),
-    loadFromString: (supr, str) => {
-      supr.clear();
-      JSON.parse(str).forEach(([key, val]) => supr.set(key, val));
+    loadFromString: (refMap, str) => {
+      refMap.clear();
+      JSON.parse(str).forEach(([key, val]) => refMap.set(key, val));
     },
     methods: ['set', 'delete', 'clear'],
   });
@@ -407,7 +483,7 @@ function localStorageRefMap(name) {
 function localStorageRef(name) {
   return localStorageVar(name, ref, {
     saveToString: val => JSON.stringify(val()),
-    loadFromString: (supr, str) => supr.set(JSON.parse(str)),
+    loadFromString: (ref, str) => ref.set(JSON.parse(str)),
     methods: ['set'],
   });
 }
@@ -418,4 +494,4 @@ function randomChars(length) {
   return Array.from({length}, randomChar).join('');
 }
 
-const render = await main();
+await main();

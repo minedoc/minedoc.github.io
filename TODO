@@ -1,6 +1,6 @@
+BUGS
+
 TODO
-- integrate ref and new Database().table(notes)
-  choose which database to open (database registry?)
 - loading page
     if share link
       add database, database loading page, go to page
@@ -15,6 +15,12 @@ TODO
       else
         state = [selectDatabase]
 - diff
+- search query is backable (change query = update state, add query = pushstate)
+  complicated what if you delete the query
+- database close needs to close connections
+- connectivity light
+
+TODO: the difference join/map key preserving vs groupBy non-key-preserving vs nkp-multi
 
 TODO: make computed period divisible
   they are synchronized so we don't get LCM delay
@@ -30,6 +36,8 @@ TODO: ergonomics
 
 TODO: use consistent type for note and draft object - avoid missing fields?
 
+TODO: verify debounce works
+
 == Thoughts ==
 
 back button
@@ -38,12 +46,9 @@ back button
   never ask before leaving app
 
 how to map events to data
-  if button is singular on page: use app.state().id()
-    this hard codes button to the page
-  if button is repeated single-item: use e.dataset.id
-  if button is repeated multi-item: use p = e.closest('[data-id]').dataset.id
+  if widget is simple: use id = e.dataset.id
+  if widget is complex: use id = e.closest('[data-id]').dataset.id
   flat addressing with global key works
-  alternatively a path to the object that is to be edited
 
 pages
   url is the entire state, everything not included in url is lost on refresh/nav
@@ -52,3 +57,12 @@ pages
     pages can be instantiated
     see tablet view in android
 
+multi database
+  outerjoin with dynamic refs list
+    [a,b,c].outerJoin((...items) => { return items[selectedDb()]; })
+    need in addition to trigger an update when the reflist itself change (need to observe it)
+    current outerJoin will merge all events together
+  dump everything into one big table and use a filter on the database
+
+when there is no network connectivity makeSocket will throw console error
+  this is unstoppable due to chrome specific rule

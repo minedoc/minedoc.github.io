@@ -45,8 +45,7 @@ function computed(update, updateKeys, period=0) {
   let state = FULL_UPDATE;
   const modifiedKeys = new Set();
   const outputs = new NotifySet();
-  // TODO: verify debounce works
-  const notify = debounce(period, keys => {  // TODO: would like to check !dirty but doesn't work
+  const notify = debounce(period, keys => {
     if (updateKeys === undefined || keys === FULL_UPDATE) {
       state = FULL_UPDATE;
       outputs.notify(FULL_UPDATE);
