@@ -1,4 +1,4 @@
-import {Database} from './serverless2/database.js';
+import {Database, newConnectionString} from './serverless2/database.js';
 import {template, dateAsAge, dedup, debuggingShowErrors} from './lib.js';
 import {ref, refMap, computed, computedMap, DELETE, toggleDebug} from './ref.js';
 
@@ -70,23 +70,33 @@ function navigate(app, page, params) {
 
 function Actions(app) {
   return {
+    newBook(e) {
+      const displayName = e.closest('.openPage').querySelector('.noteName').value;
+      if (displayName && displayName.length > 0) {
+        const bookId = randomChars(5);
+        const connection = newConnectionString();
+        app.books.set(bookId, {displayName, connection, lastOpenTime: Date.now()});
+        openBook(bookId, app);
+        navigate(app, 'list', {});
+      }
+    },
     openBook(e) {
-      const id = e.closest('[data-id]').dataset.id;
-      openBook(id, app);
+      const bookId = e.closest('[data-book-id]').dataset.bookId;
+      openBook(bookId, app);
       navigate(app, 'list', {});
     },
     renameBook(e) {
-      const id = e.closest('[data-id]').dataset.id;
-      const book = app.books().get(id);
+      const bookId = e.closest('[data-book-id]').dataset.bookId;
+      const book = app.books().get(bookId);
       const displayName = prompt('rename ' + book.displayName);
       if (displayName && displayName.length > 0) {
-        app.books.set(id, {...book, displayName});
+        app.books.set(bookId, {...book, displayName});
       }
       render();
     },
     deleteBook(e) {
-      const id = e.closest('[data-id]').dataset.id;
-      app.books.delete(id);
+      const bookId = e.closest('[data-book-id]').dataset.bookId;
+      app.books.delete(bookId);
       render();
     },
     shareBook(e) {
@@ -234,8 +244,8 @@ const Template = (() => {
     target.root.data('id', id);
     target.root.text(shorten(text, 1, 50));
   });
-  const book = template('book', (target, [id, {displayName, connection}]) => {
-    target.root.data('id', id);
+  const book = template('book', (target, [bookId, {displayName, connection}]) => {
+    target.root.data('bookId', bookId);
     target.name.text(displayName);
     target.shareLink.value(window.location.origin + window.location.pathname + '#share=' + connection);
   });
@@ -250,11 +260,11 @@ function openDefaultBook(app) {
 }
 
 var closeDatabase = unused => 0;
-async function openBook(id, app) {
+async function openBook(bookId, app) {
   closeDatabase();
-  const book = app.books().get(id);
-  app.books.set(id, {...book, lastOpenDate: Date.now()});
-  const db = await Database('note-' + id, book.connection);
+  const book = app.books().get(bookId);
+  app.books.set(bookId, {...book, lastOpenDate: Date.now()});
+  const db = await Database('note-' + bookId, book.connection);
   const table = db.table('notes');
   const handler = {set: render, delete: render};
   app.table = table;  // TODO: get rid of this hack

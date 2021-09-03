@@ -1,7 +1,7 @@
 BUGS
 
 TODO
-- loading page
+- handle init page
     if share link
       add database, database loading page, go to page
     else if deep link
