@@ -1,6 +1,6 @@
-BUGS
+== Bugs ==
 
-TODO
+== Todo ==
 - handle init page
     if share link
       add database, database loading page, go to page
@@ -20,23 +20,22 @@ TODO
 - database close needs to close connections
 - connectivity light
 
-TODO: the difference join/map key preserving vs groupBy non-key-preserving vs nkp-multi
+== Improvements ==
+improve ref
+  make computed period divisible
+    they are synchronized so we don't get LCM delay
+    [0.1s, 1s, 10s, 1m, 10m, 1h]
+    how to ensure it flows smoothly?
+  verify debounce works
 
-TODO: make computed period divisible
-  they are synchronized so we don't get LCM delay
-  [0.1s, 1s, 10s, 1m, 10m, 1h]
-  how to ensure it flows smoothly?
-
-TODO: reduce need for references to app root
+reduce need for references to app root
   implicit binding of event handlers and data it can manipulate?
 
-TODO: ergonomics
+ergonomics
   this is hard to reason about and debug
   code is all over the place especially if we have multiple pages
 
-TODO: use consistent type for note and draft object - avoid missing fields?
-
-TODO: verify debounce works
+use consistent type for note and draft object - avoid missing fields?
 
 == Thoughts ==
 

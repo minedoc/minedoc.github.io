@@ -20,16 +20,17 @@ function baseRef(constructor, extend) {
   return function(init) {
     const outputs = new NotifySet();
     let value = constructor(init);
-    const ref = () => {
+    function getRef() {
       outputs.saveCaller();
       return value;
-    };
-    ref.set = val => {
+    }
+    function setRef(val) {
       log('set', val)();
       value = constructor(val);
       outputs.notify(FULL_UPDATE);
-    };
-    return extend(ref, outputs);
+    }
+    getRef.set = setRef;
+    return extend(getRef, outputs);
   };
 }
 
@@ -61,7 +62,7 @@ function computed(update, updateKeys, period=0) {
       outputs.notify(PARTIAL_UPDATE);
     }
   });
-  return () => {
+  return function getComputed() {
     outputs.saveCaller();
     if (state == FULL_UPDATE || state == PARTIAL_UPDATE) {
       var childKeys = undefined;
@@ -84,7 +85,7 @@ function computed(update, updateKeys, period=0) {
       state = UP_TO_DATE;
     }
     return value;
-  };
+  }
 }
 
 const computedMap = fn => withRefMapMethods(computed(fn));
@@ -119,15 +120,15 @@ function filter(srcRef, fn) {  // {k,v} -> (k, v -> bool) -> {k, v}
   function updateFilter() {
     const src = srcRef();
     const out = new ReadOnlyMap();
-    insert(src, out, src.keys());
+    insertFilter(src, out, src.keys());
     return out;
   }
   function updateFilterByKey(dest, keyFn) {
     const src = srcRef();
     const keys = keyFn();
-    return insert(src, dest, keys);
+    return insertFilter(src, dest, keys);
   }
-  function insert(src, dest, keys) {
+  function insertFilter(src, dest, keys) {
     log('filter start', new Map(dest), fn)();
     for (const key of keys) {
       if (src.has(key)) {
@@ -146,19 +147,22 @@ function filter(srcRef, fn) {  // {k,v} -> (k, v -> bool) -> {k, v}
 }
 
 function leftJoin(srcRef, joinRefs, fn) {  // {k,v} -> [{k,u}] -> (v,...u -> w) -> k,w
-  function updateJoin() {
+  function updateLeftJoin() {
     const src = srcRef();
     const out = new ReadOnlyMap();
-    insert(src, out, src.keys());
+    insertLeftJoin(src, out, src.keys());
     return out;
   }
-  function updateJoinByKey(dest, keyFn) {
+  function updateLeftJoinByKey(dest, keyFn) {
     const src = srcRef();
     const keys = keyFn();
-    return insert(src, dest, keys);
+    return insertLeftJoin(src, dest, keys);
   }
-  function insert(src, dest, keys) {
-    const join = joinRefs.map(x => x());
+  function insertLeftJoin(src, dest, keys) {
+    const join = [];
+    for (const ref of joinRefs) {
+      join.push(ref());
+    }
     log('leftJoin start', new Map(dest), fn)();
     for (const key of keys) {
       if (src.has(key)) {
@@ -172,23 +176,23 @@ function leftJoin(srcRef, joinRefs, fn) {  // {k,v} -> [{k,u}] -> (v,...u -> w) 
     log('leftJoin done', new Map(dest))();
     return keys;
   }
-  return withRefMapMethods(computed(updateJoin, updateJoinByKey));
+  return withRefMapMethods(computed(updateLeftJoin, updateLeftJoinByKey));
 }
 
 function outerJoin(refs, fn) {  // [{k,u}] -> (...u -> w) -> k,w
   // Note: must deal with fully empty - fn(undefined, undefined)
-  function updateJoin() {
+  function updateOuterJoin() {
     const src = refs.map(x => x());
     const out = new ReadOnlyMap();
-    insert(src, out, new Set(src.flatMap(x => Array.from(x.keys()))));
+    insertOuterJoin(src, out, new Set(src.flatMap(x => Array.from(x.keys()))));
     return out;
   }
-  function updateJoinByKey(dest, keyFn) {
+  function updateOuterJoinByKey(dest, keyFn) {
     const srcs = refs.map(x => x());
     const keys = keyFn();
-    return insert(srcs, dest, keys);
+    return insertOuterJoin(srcs, dest, keys);
   }
-  function insert(srcs, dest, keys) {
+  function insertOuterJoin(srcs, dest, keys) {
     log('outerJoin start', new Map(dest), fn)();
     for (const key of keys) {
       log({key, inputs: srcs.map(j => j.get(key)), output: fn(key, ...srcs.map(j => j.get(key)))})();
@@ -197,24 +201,24 @@ function outerJoin(refs, fn) {  // [{k,u}] -> (...u -> w) -> k,w
     log('outerJoin done', new Map(dest))();
     return keys;
   }
-  return withRefMapMethods(computed(updateJoin, updateJoinByKey));
+  return withRefMapMethods(computed(updateOuterJoin, updateOuterJoinByKey));
 }
 
 function groupBy(srcRef, fn) {  // k,v -> (k,v -> Map<j,u>) -> j,Map<k,u>
   const keyMap = new Map();
-  function updateGroupby() {
+  function updateGroupBy() {
     const src = srcRef();
     const out = new ReadOnlyMap();
     keyMap.clear();
-    insert(src, out, src.keys());
+    insertGroupBy(src, out, src.keys());
     return out;
   }
-  function updateGroupbyByKey(dest, keyFn) {
+  function updateGroupByByKey(dest, keyFn) {
     const src = srcRef();
     const keys = keyFn();
-    return insert(src, dest, keys);
+    return insertGroupBy(src, dest, keys);
   }
-  function insert(src, dest, keys) {
+  function insertGroupBy(src, dest, keys) {
     log('groupBy start', new Map(dest), fn)();
     const difference = new Set();
     for (const key of keys) {
@@ -251,7 +255,7 @@ function groupBy(srcRef, fn) {  // k,v -> (k,v -> Map<j,u>) -> j,Map<k,u>
     log('groupBy done', new Map(dest), difference)();
     return difference;
   }
-  return withRefMapMethods(computed(updateGroupby, updateGroupbyByKey));
+  return withRefMapMethods(computed(updateGroupBy, updateGroupByByKey));
 }
 
 // utility
