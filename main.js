@@ -26,6 +26,7 @@ function handleURL(app) {
     const displayName = prompt('name of notes', 'notes');
     const connection = hash.substring(sharePrefix.length);
     app.books.set(bookId, {displayName, connection, lastOpenTime: Date.now()});
+    openBook(bookId, app);
     window.history.replaceState({}, '', '?' + new URLSearchParams({ page: 'open' }));
     navigate(app, 'list', {});
   } else {
