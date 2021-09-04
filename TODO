@@ -1,8 +1,10 @@
 == Bugs ==
 
 == Todo ==
+- use a steady ID for books = db.prefix(20)
+- better loading screen before js ready
 - handle init page
-    if share link
+    [done] if share link
       add database
       list page
     else if deep link
@@ -10,9 +12,9 @@
         go to deep link
       else
         book page
-    else if default database exists
+    [done] else if default database exists
       list page
-    else
+    [done] else
       book page
 - diff
 - search query is backable (change query = update state, add query = pushstate)

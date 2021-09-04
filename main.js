@@ -8,13 +8,13 @@ debuggingShowErrors();  // TODO: remove
 var render;
 async function main() {
   const app = window.app = App();
-  handleURL(app);
 
   const renderer = Template(app);
   document.body.appendChild(renderer.dom);
-  window.a = Actions(app);
   render = () => renderer.update(app);
-  openDefaultBook(app);
+  handleURL(app);
+
+  window.a = Actions(app);
 }
 
 function handleURL(app) {
@@ -26,15 +26,26 @@ function handleURL(app) {
     const displayName = prompt('name of notes', 'notes');
     const connection = hash.substring(sharePrefix.length);
     app.books.set(bookId, {displayName, connection, lastOpenTime: Date.now()});
+  } else {
+    const books = app.bookList();
+    if (books.length > 0) {
+      openBook(books[0][0], app);
+      window.history.replaceState({}, '', '?' + new URLSearchParams({ page: 'open' }));
+      window.history.pushState({}, '', '?' + new URLSearchParams({ page: 'list', order: 'priority' }));
+      const startPage = params.get('page');
+      if (startPage && startPage != 'list') {
+        window.history.pushState({}, '', '?' + params);
+      }
+      app.page.set(startPage || 'list');
+      app.state().load(params);
+      render();
+    } else {
+      window.history.replaceState({}, '', '?' + new URLSearchParams({ page: 'open' }));
+      app.page.set('open');
+      app.state().load({});
+      render();
+    }
   }
-  window.history.replaceState({}, '', '?' + new URLSearchParams({ page: 'open' }));
-  window.history.pushState({}, '', '?' + new URLSearchParams({ page: 'list', order: 'priority' }));
-  const startPage = params.get('page');
-  if (startPage && startPage != 'list') {
-    window.history.pushState({}, '', '?' + params);
-  }
-  app.page.set(params.get('page') || 'list');
-  app.state().load(params);
 
   window.addEventListener('popstate', () => {
     // on exit page
@@ -71,6 +82,7 @@ function navigate(app, page, params) {
   app.page.set(page);
   app.state().load(new URLSearchParams(params));
   window.history.pushState({}, '', toUrl(app));
+  render();
 }
 
 function Actions(app) {
@@ -121,7 +133,6 @@ function Actions(app) {
         id,
         editStartTime: Date.now(),
       });
-      render();
     },
     openItem(e) {
       app.read.set(e.dataset.id, true);
@@ -129,7 +140,6 @@ function Actions(app) {
         id: e.dataset.id,
         editStartTime: Date.now(),
       });
-      render();
     },
     orderChange(e) {
       app.pages.list.order.set(e.value);
@@ -257,13 +267,6 @@ const Template = (() => {
   return body;
 }) ();
 
-function openDefaultBook(app) {
-  const books = app.bookList();
-  if (books.length > 0) {
-    openBook(books[0][0], app);
-  }
-}
-
 var closeDatabase = unused => 0;
 async function openBook(bookId, app) {
   closeDatabase();
@@ -290,7 +293,6 @@ async function openBook(bookId, app) {
     db.close();
     closeDatabase = unused => 0;
   };
-  render();
 }
 
 function App() {
