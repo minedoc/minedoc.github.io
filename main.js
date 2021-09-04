@@ -37,6 +37,7 @@ function handleURL(app) {
   app.state().load(params);
 
   window.addEventListener('popstate', () => {
+    // on exit page
     if (app.page() == 'edit' && app.state().note()) {
       const note = app.state().note();
       const id = app.state().id();
@@ -52,6 +53,10 @@ function handleURL(app) {
     const params = new URL(document.location).searchParams;
     app.page.set(params.get('page'));
     app.state().load(params);
+    // on enter page
+    if (app.page() == 'open') {
+      closeDatabase();
+    }
     render();
   });
   setInterval(() => window.history.replaceState({}, '', toUrl(app)), 500);
@@ -212,8 +217,8 @@ function Actions(app) {
 }
 
 const Template = (() => {
-  const body = template('container', (target, {bookList, page, state, network}) => {
-    target.root.data('page', page()).class('network', network());
+  const body = template('container', (target, {bookList, page, state, online}) => {
+    target.root.data('page', page()).class('online', online());
     const s = state();
     if (page() == 'open') {
       target.books.repeat(book, bookList());
@@ -224,13 +229,13 @@ const Template = (() => {
     } else if (page() == 'edit') {
       const note = s.note();
       if (note != undefined) {
-        target.id.text(note.draft ? 'draft' : '');
+        target.noteDescription.text(note.draft ? 'draft' : '');
         target.editor.value(note.text);
         target.priority.value(note.priority);
         target.timer.text(dateAsAge(s.editStartTime()));
         target.related.repeat(related, s.related());
       } else {
-        target.id.text('deleted');
+        target.noteDescription.text('deleted');
         target.editor.value('this note has been deleted');
         target.related.repeat(related, []);
       }
@@ -271,9 +276,19 @@ async function openBook(bookId, app) {
   app.notes.clear();
   table.forward(app.notes);
   table.forward(handler);
+  const updateOnlineStatusInterval = setInterval(() => {
+    const online = db.peerCount().connected > 0;
+    if (app.online() != online) {
+      app.online.set(online);
+      render();
+    }
+  }, 1000);
   closeDatabase = () => {
     table.unforward(app.notes);
     table.unforward(handler);
+    clearInterval(updateOnlineStatusInterval);
+    db.close();
+    closeDatabase = unused => 0;
   };
   render();
 }
@@ -296,7 +311,7 @@ function App() {
       return DELETE;
     }
   });
-  const network = ref(false);  // TODO: how to show network status
+  const online = ref(false);  // TODO: how to show online status
   const page = ref('list');
   const pages = {
     list: ListPage(mergedNotes),
@@ -304,7 +319,7 @@ function App() {
     open: OpenPage(),
   };
   const state = () => pages[page()];
-  return {books, bookList, page, state, network, pages, notes, drafts, read, table: undefined, /* debug */ mergedNotes };
+  return {books, bookList, page, state, online, pages, notes, drafts, read, table: undefined, /* debug */ mergedNotes };
 }
 
 function OpenPage() {

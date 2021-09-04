@@ -74,14 +74,27 @@ body {
   margin: 1rem 0;
   flex: 0;
 }
+.connectivity,
 .barButton {
   width: 3rem;
   text-align: center;
 }
+.connectivity::after {
+  content: '';
+  display: block;
+  height: 0.8rem;
+  width: 0.8rem;
+  margin: 1.35rem 0 0 1.1rem; /* top = (3.5-0.8)/2 ; right = (3.0-0.8)/2*/
+  background-color: #d0453d; /* default = offline */
+}
+.online .connectivity::after {
+  border-radius: 0.4rem;
+  background-color: #479e49;
+}
 .barText {
   padding: 0 1rem;
 }
-.id {
+.noteDescription {
   padding-left: 1rem;
   color: #999;
 }
@@ -94,6 +107,7 @@ input, option, select, textarea {
   background-color: inherit;
   color: inherit;
   outline: none;
+  resize: none;
 }
 .priority {
   flex: 1;
@@ -249,7 +263,7 @@ del {
   flex-basis: 6rem;
 }
 .bookShare {
-  margin: 0 0 0 1rem;
+  margin: 0 0 1rem 1rem;
   flex: 1;
 }
 .bookRowShare {

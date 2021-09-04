@@ -31,6 +31,8 @@
       <div class="topBar">
         <div class="barButton" onclick="history.back()">‹</div>
         <div class="spacer"></div>
+        <div class="connectivity"></div>
+        <div class="spacer"></div>
         <select class="listOrder" onchange="a.orderChange(this)" data-bind="order">
           <option value="priority">Priority</option>
           <option value="recent">Recent</option>
@@ -50,7 +52,9 @@
       <div class="topBar">
         <div class="barButton" onclick="history.back()">‹</div>
         <div class="spacer"></div>
-        <div class="id" data-bind="id"></div>
+        <div class="connectivity"></div>
+        <div class="spacer"></div>
+        <div class="noteDescription" data-bind="noteDescription"></div>
         <select class="priority" data-bind="priority" oninput="a.importanceInput(this)">
           <option value="0">0d</option>
           <option value="1">1d</option>
@@ -97,6 +101,8 @@
     <div class="page diffPage">
       <div class="topBar">
         <div class="backButton" onclick="history.back()">‹</div>
+        <div class="spacer"></div>
+        <div class="connectivity"></div>
       </div>
       <div class="diffHolder" data-bind="diff"></div>
       <div class="botBar">
