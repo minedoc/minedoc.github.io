@@ -3,17 +3,17 @@
 == Todo ==
 - handle init page
     if share link
-      add database, database loading page, go to page
+      add database
+      list page
     else if deep link
-      if database available
-        state = [selectDatabase, list, (if deep-link not list, deep-link)]
+      if page exists in default database -> can we include local/global db in URL?
+        go to deep link
       else
-        state = [selectDatabase notFound=db]
+        book page
+    else if default database exists
+      list page
     else
-      if default database exists
-        state = [selectDatabase, list]
-      else
-        state = [selectDatabase]
+      book page
 - diff
 - search query is backable (change query = update state, add query = pushstate)
   complicated what if you delete the query

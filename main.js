@@ -263,7 +263,7 @@ var closeDatabase = unused => 0;
 async function openBook(bookId, app) {
   closeDatabase();
   const book = app.books().get(bookId);
-  app.books.set(bookId, {...book, lastOpenDate: Date.now()});
+  app.books.set(bookId, {...book, lastOpenTime: Date.now()});
   const db = await Database('note-' + bookId, book.connection);
   const table = db.table('notes');
   const handler = {set: render, delete: render};
