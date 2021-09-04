@@ -26,6 +26,8 @@ function handleURL(app) {
     const displayName = prompt('name of notes', 'notes');
     const connection = hash.substring(sharePrefix.length);
     app.books.set(bookId, {displayName, connection, lastOpenTime: Date.now()});
+    window.history.replaceState({}, '', '?' + new URLSearchParams({ page: 'open' }));
+    navigate(app, 'list', {});
   } else {
     const books = app.bookList();
     if (books.length > 0) {
@@ -41,9 +43,7 @@ function handleURL(app) {
       render();
     } else {
       window.history.replaceState({}, '', '?' + new URLSearchParams({ page: 'open' }));
-      app.page.set('open');
-      app.state().load({});
-      render();
+      navigate(app, 'open', {});
     }
   }
 
