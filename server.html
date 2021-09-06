@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<body>
+
+<style>
+html {
+  font-size: 13px;
+  line-height: 1.23;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  color: #fdfdfd;
+  background-color: #292e33;
+}
+.commands {
+  margin: 1rem 0;
+}
+table, td {
+  border: 1px solid #ccc;
+  border-collapse: collapse;
+}
+th {
+  background-color: #3b7b7b;
+}
+td {
+  padding: 0.5rem;
+}
+tr:nth-child(even) {
+  background-color: #474b50;
+}
+.daily {
+  color: #81fb81;
+  font-weight: bold;
+  margin: 1rem;
+}
+</style>
+
+<div class="root" data-template="root">
+  <div class="commands">
+    <input type="button" value="download backup now" onclick="a.downloadNow()">
+    <input type="button" value="download backup daily" onclick="a.downloadDaily()">
+    <div class="daily" data-bind="daily"></div>
+  </div>
+  <table class="databases">
+    <thead>
+      <td>name</td>
+      <td>backup</td>
+      <td>connected / total</td>
+      <td>share</td>
+    </thead>
+    <tbody data-bind="databases">
+      <tr class="database" data-template="databaseRow">
+        <td data-bind="name"></td>
+        <td data-bind="backup"></td>
+        <td data-bind="status"></td>
+        <td data-bind="share"></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<script type="module" src="server.js"></script>

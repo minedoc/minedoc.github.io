@@ -88,9 +88,57 @@ function computed(update, updateKeys, period=0) {
   }
 }
 
+function localStorageVar(name, ctor, params) {
+  var valStr;
+  const value = ctor();
+  const saver = debounce(500, () => localStorage.setItem(name, valStr));
+  const oldMethods = {};
+  params.methods.forEach(method => {
+    const fn = oldMethods[method] = value[method];
+    value[method] = (...val) => {
+      fn(...val);
+      valStr = params.saveToString(value);
+      saver(500);
+    };
+  });
+  const load = update => {
+    if (valStr != update) {
+      valStr = update;
+      params.loadFromString(oldMethods, update);
+    }
+  };
+  load(localStorage.getItem(name));
+  window.addEventListener('storage', e => {
+    if (e.storageArea == localStorage && e.key == name) {
+      load(e.newValue);
+      render();
+    }
+  });
+  return value;
+}
+
+function localStorageRefMap(name) {
+  return localStorageVar(name, refMap, {
+    saveToString: val => JSON.stringify(Array.from(val().entries())),
+    loadFromString: (refMap, str) => {
+      refMap.clear();
+      JSON.parse(str).forEach(([key, val]) => refMap.set(key, val));
+    },
+    methods: ['set', 'delete', 'clear'],
+  });
+}
+
+function localStorageRef(name) {
+  return localStorageVar(name, ref, {
+    saveToString: val => JSON.stringify(val()),
+    loadFromString: (ref, str) => ref.set(JSON.parse(str)),
+    methods: ['set'],
+  });
+}
+
 const computedMap = fn => withRefMapMethods(computed(fn));
 
-export {ref, refMap, computed, computedMap, DELETE, toggleDebug};
+export {ref, refMap, computed, computedMap, DELETE, toggleDebug, localStorageRef, localStorageRefMap};
 
 class NotifySet {
   constructor() {

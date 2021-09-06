@@ -177,4 +177,12 @@ function wakelock() {
 }
 window.wakelock = wakelock;
 
-export {template, dateAsAge, dedup, debuggingShowErrors};
+function descending(fn) {
+  return (a, b) => {
+    const av = fn(a);
+    const bv = fn(b);
+    return av < bv ? 1 : (av == bv ? 0 : -1);
+  };
+}
+
+export {template, dateAsAge, dedup, debuggingShowErrors, descending};

@@ -1,6 +1,6 @@
 import {Database, newConnectionString} from './serverless2/database.js';
-import {template, dateAsAge, dedup, debuggingShowErrors} from './lib.js';
-import {ref, refMap, computed, computedMap, DELETE, toggleDebug} from './ref.js';
+import {template, dateAsAge, dedup, descending, debuggingShowErrors} from './lib.js';
+import {ref, refMap, computed, computedMap, DELETE, toggleDebug, localStorageRef, localStorageRefMap} from './ref.js';
 
 debuggingShowErrors();  // TODO: remove
 // toggleDebug();  // TODO: remove
@@ -422,14 +422,6 @@ function snapshot(src) {
   return {save, load};
 }
 
-function descending(fn) {
-  return (a, b) => {
-    const av = fn(a);
-    const bv = fn(b);
-    return av < bv ? 1 : (av == bv ? 0 : -1);
-  };
-}
-
 function arrayIndex(array, index) {
   return array[Math.min(Math.max(index, 0), array.length - 1)];
 }
@@ -466,54 +458,6 @@ function editorHeader(editor, start) {
   const prevLineIndex = editor.value.lastIndexOf('\n', start - 1);
   const prevLine = editor.value.substring(prevLineIndex + 1, start)
   return prevLine.split(/[^ *-]/, 1)[0];
-}
-
-function localStorageVar(name, ctor, params) {
-  var valStr;
-  const value = ctor();
-  const saver = dedup(() => localStorage.setItem(name, valStr));
-  const oldMethods = {};
-  params.methods.forEach(method => {
-    const fn = oldMethods[method] = value[method];
-    value[method] = (...val) => {
-      fn(...val);
-      valStr = params.saveToString(value);
-      saver(500);
-    };
-  });
-  const load = update => {
-    if (valStr != update) {
-      valStr = update;
-      params.loadFromString(oldMethods, update);
-    }
-  };
-  load(localStorage.getItem(name));
-  window.addEventListener('storage', e => {
-    if (e.storageArea == localStorage && e.key == name) {
-      load(e.newValue);
-      render();
-    }
-  });
-  return value;
-}
-
-function localStorageRefMap(name) {
-  return localStorageVar(name, refMap, {
-    saveToString: val => JSON.stringify(Array.from(val().entries())),
-    loadFromString: (refMap, str) => {
-      refMap.clear();
-      JSON.parse(str).forEach(([key, val]) => refMap.set(key, val));
-    },
-    methods: ['set', 'delete', 'clear'],
-  });
-}
-
-function localStorageRef(name) {
-  return localStorageVar(name, ref, {
-    saveToString: val => JSON.stringify(val()),
-    loadFromString: (ref, str) => ref.set(JSON.parse(str)),
-    methods: ['set'],
-  });
 }
 
 const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_';
