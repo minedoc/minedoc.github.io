@@ -17,8 +17,18 @@
     [done] else
       book page
 - diff
-- search query is backable (change query = update state, add query = pushstate)
-  complicated what if you delete the query
+  document changed during edit
+  how do we implement diff
+    on popstate
+    if there is a diffable change (removal)
+    navigate to diff
+    diff back => no save, keep draft
+    diff save => overwrite
+    diff discard => delete draft
+- verify URL handling works with new page
+- deduplicate render calls for remote changes
+  eg once a second
+- android app
 
 == Improvements ==
 improve ref

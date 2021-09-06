@@ -56,7 +56,7 @@ function handleURL(app) {
       if (note.text.length != 0) {
         if (id.startsWith('draft-')) {
           app.table.insert(note);
-        } else {
+        } else if (app.table.get(id).text != note.text) {
           app.table.update(id, note);
         }
       }
@@ -71,7 +71,13 @@ function handleURL(app) {
     }
     render();
   });
-  setInterval(() => window.history.replaceState({}, '', toUrl(app)), 500);
+  setInterval(() => {
+    const currentUrl = document.location.search;
+    const newUrl = toUrl(app);
+    if (currentUrl != newUrl) {
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, 500);
 }
 
 function toUrl(app) {

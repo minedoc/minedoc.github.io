@@ -80,6 +80,7 @@
         autocomplete="off" spellcheck="off" autocapitalize="off"
         onkeydown="a.editorKeyDown(this, event)"
         oninput="a.editorInput(this)"
+        oncompositionend="a.compositionEnd(this, event)"
         data-bind="editor"></textarea>
       <div class="related" data-bind="related"></div>
       <div class="botBar sendKeys">
