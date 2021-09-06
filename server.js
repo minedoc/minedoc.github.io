@@ -34,7 +34,7 @@ function Actions(app) {
     },
     downloadDaily: async function downloadDaily() {
       const dir = await window.showDirectoryPicker();
-      setInterval(() => writeBackups(dir, app.bookList()), 24*60*60*1000);
+      setInterval(() => writeBackups(dir, app.bookList()), 3*60*60*1000);
       await writeBackups(dir, app.bookList());
       app.daily.set(true);
     },
