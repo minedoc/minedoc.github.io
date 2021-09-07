@@ -37,12 +37,14 @@ body {
 }
 .openPage,
 .listPage,
-.editPage {
+.editPage,
+.diffPage {
   display: none;
 }
 [data-page="open"] .openPage,
 [data-page="list"] .listPage,
-[data-page="edit"] .editPage {
+[data-page="edit"] .editPage,
+[data-page="diff"] .diffPage {
   display: flex;
 }
 .listPage .results {

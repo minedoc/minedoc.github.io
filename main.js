@@ -21,34 +21,31 @@ function handleURL(app) {
   const params = new URL(document.location).searchParams;
   const hash = new URL(document.location).hash;
   const sharePrefix = '#share=';
+  window.history.replaceState({}, '', '?' + new URLSearchParams({ page: 'open' }));
   if (hash.startsWith(sharePrefix)) {
     const bookId = randomChars(5);
     const displayName = prompt('name of notes', 'notes');
     const connection = hash.substring(sharePrefix.length);
     app.books.set(bookId, {displayName, connection, lastOpenTime: Date.now()});
     openBook(bookId, app);
-    window.history.replaceState({}, '', '?' + new URLSearchParams({ page: 'open' }));
     navigate(app, 'list', {});
   } else {
     const books = app.bookList();
     if (books.length > 0) {
       openBook(books[0][0], app);
-      window.history.replaceState({}, '', '?' + new URLSearchParams({ page: 'open' }));
       window.history.pushState({}, '', '?' + new URLSearchParams({ page: 'list', order: 'priority' }));
-      const startPage = params.get('page');
-      if (startPage && startPage != 'list') {
-        window.history.pushState({}, '', '?' + params);
+      const startPage = params.get('page') || 'list';
+      if (startPage == 'list') {
+        replaceState(app, startPage, params);
+      } else {
+        navigate(app, startPage, params);
       }
-      app.page.set(startPage || 'list');
-      app.state().load(params);
-      render();
     } else {
-      window.history.replaceState({}, '', '?' + new URLSearchParams({ page: 'open' }));
-      navigate(app, 'open', {});
+      replaceState(app, 'open', {});
     }
   }
 
-  window.addEventListener('popstate', () => {
+  window.addEventListener('popstate', event => {
     // on exit page
     if (app.page() == 'edit' && app.state().note()) {
       const note = app.state().note();
@@ -56,20 +53,26 @@ function handleURL(app) {
       if (note.text.length != 0) {
         if (id.startsWith('draft-')) {
           app.table.insert(note);
+          app.drafts.delete(id);
         } else if (app.table.get(id).text != note.text) {
-          app.table.update(id, note);
+          if (hasImportantDiff(app, id)) {
+            pushState(app, 'diff', {id});
+            return;
+          } else {
+            app.table.update(id, note);
+            app.drafts.delete(id);
+          }
         }
       }
-      app.drafts.delete(id);
     }
+
     const params = new URL(document.location).searchParams;
-    app.page.set(params.get('page'));
-    app.state().load(params);
+    replaceState(app, params.get('page'), params);
+
     // on enter page
     if (app.page() == 'open') {
       closeDatabase();
     }
-    render();
   });
   setInterval(() => {
     const currentUrl = document.location.search;
@@ -80,12 +83,35 @@ function handleURL(app) {
   }, 500);
 }
 
+function hasImportantDiff(app, id) {
+  const draft = app.drafts().get(id);
+  const base = app.notes().get(id);
+  if (draft && base) {
+    const diff = differ.main(base.text, draft.text);
+    const deletedChars = diff.map(a => a[0] < 0 ? a[1].length : 0).reduce((a, b) => a + b, 0);
+    return deletedChars > 20;
+  } else {
+    return false;
+  }
+}
+
 function toUrl(app) {
   return '?' + new URLSearchParams(Object.assign({'page': app.page()}, app.state().save()));
 }
 
 function navigate(app, page, params) {
   window.history.replaceState({}, '', toUrl(app));
+  pushState(app, page, params);
+}
+
+function replaceState(app, page, params) {
+  app.page.set(page);
+  app.state().load(new URLSearchParams(params));
+  window.history.replaceState({}, '', toUrl(app));
+  render();
+}
+
+function pushState(app, page, params) {
   app.page.set(page);
   app.state().load(new URLSearchParams(params));
   window.history.pushState({}, '', toUrl(app));
@@ -230,6 +256,19 @@ function Actions(app) {
       const editor = e.closest('.page').querySelector('.editor');
       document.execCommand('redo', true);
     },
+    diffSave() {
+      const id = app.pages.diff.id();
+      const draft = app.drafts().get(id);
+      if (draft) {
+        app.table.update(id, draft);
+        app.drafts.delete(id);
+      }
+      history.back();
+    },
+    diffRevert() {
+      app.drafts.delete(app.pages.diff.id());
+      history.back();
+    },
   }
 }
 
@@ -256,6 +295,8 @@ const Template = (() => {
         target.editor.value('this note has been deleted');
         target.related.repeat(related, []);
       }
+    } else if (page() == 'diff') {
+      target.diff.unsafe_html(s.diffHtml());
     }
   });
   const item = template('item', (target, [id, {read, draft, note: {text}}]) => {
@@ -326,6 +367,7 @@ function App() {
     list: ListPage(mergedNotes),
     edit: EditPage(mergedNotes),
     open: OpenPage(),
+    diff: DiffPage(notes, drafts),
   };
   const state = () => pages[page()];
   return {books, bookList, page, state, online, pages, notes, drafts, read, table: undefined, /* debug */ mergedNotes };
@@ -375,6 +417,23 @@ function EditPage(notes) {
       .slice(0, 40);
   });
   return {id, editStartTime, ...snapshot({id, editStartTime}), note, related}
+}
+
+const differ = new diff({timeout: 2, editCost: 8});
+function DiffPage(notes, drafts) {
+  const id = ref('');
+  const diffHtml = computed(() => {
+    const draft = drafts().get(id());
+    if (draft) {
+      const base = notes().get(id()) || {text: ''};
+      const diff = differ.main(base.text, draft.text);
+      differ.cleanupSemantic(diff);
+      return differ.prettyHtml(diff);
+    } else {
+      return 'no draft to diff';
+    }
+  });
+  return {id, ...snapshot({id}), diffHtml};
 }
 
 function noteSearch(notes, searchTokens, prefix) {
