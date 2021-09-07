@@ -1,9 +1,7 @@
 == Bugs ==
 
 == Todo ==
-- use a steady ID for books = db.prefix(20)
-  init page: if deep link -> open the database linked
-- do not re-add existing book, just open it
+- init page: if deep link -> open the database linked, must include db in URL
 - better background handler
   restore mobile connection
   power down webrtc and websocket after a few minutes background

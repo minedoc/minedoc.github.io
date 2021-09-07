@@ -1,4 +1,4 @@
-import {Database, newConnectionString} from './serverless2/database.js';
+import {Database, newConnectionString, connectionId} from './serverless2/database.js';
 import {template, dateAsAge, dedup, descending, debuggingShowErrors} from './lib.js';
 import {ref, refMap, computed, computedMap, DELETE, toggleDebug, localStorageRef, localStorageRefMap} from './ref.js';
 
@@ -17,33 +17,38 @@ async function main() {
   window.a = Actions(app);
 }
 
-function handleURL(app) {
+function initURLStack(app) {
   const params = new URL(document.location).searchParams;
   const hash = new URL(document.location).hash;
   const sharePrefix = '#share=';
-  window.history.replaceState({}, '', '?' + new URLSearchParams({ page: 'open' }));
+  replaceState(app, 'open', {});
   if (hash.startsWith(sharePrefix)) {
-    const bookId = randomChars(5);
-    const displayName = prompt('name of notes', 'notes');
     const connection = hash.substring(sharePrefix.length);
-    app.books.set(bookId, {displayName, connection, lastOpenTime: Date.now()});
+    const bookId = connectionId(connection);
+    if (!app.books().has(bookId)) {
+      const displayName = prompt('name of notes', 'notes');
+      app.books.set(bookId, {displayName, connection, lastOpenTime: Date.now()});
+    }
     openBook(bookId, app);
     navigate(app, 'list', {});
   } else {
     const books = app.bookList();
     if (books.length > 0) {
       openBook(books[0][0], app);
-      window.history.pushState({}, '', '?' + new URLSearchParams({ page: 'list', order: 'priority' }));
       const startPage = params.get('page') || 'list';
       if (startPage == 'list') {
-        replaceState(app, startPage, params);
+        pushState(app, startPage, params);
       } else {
+        pushState(app, 'list', {page: 'list', order: 'priority'});
         navigate(app, startPage, params);
       }
-    } else {
-      replaceState(app, 'open', {});
     }
   }
+  render();
+}
+
+function handleURL(app) {
+  initURLStack(app);
 
   window.addEventListener('popstate', event => {
     // on exit page
@@ -57,6 +62,7 @@ function handleURL(app) {
         } else if (app.table.get(id).text != note.text) {
           if (hasImportantDiff(app, id)) {
             pushState(app, 'diff', {id});
+            render();
             return;
           } else {
             app.table.update(id, note);
@@ -68,6 +74,7 @@ function handleURL(app) {
 
     const params = new URL(document.location).searchParams;
     replaceState(app, params.get('page'), params);
+    render();
 
     // on enter page
     if (app.page() == 'open') {
@@ -102,20 +109,19 @@ function toUrl(app) {
 function navigate(app, page, params) {
   window.history.replaceState({}, '', toUrl(app));
   pushState(app, page, params);
+  render();
 }
 
 function replaceState(app, page, params) {
   app.page.set(page);
   app.state().load(new URLSearchParams(params));
   window.history.replaceState({}, '', toUrl(app));
-  render();
 }
 
 function pushState(app, page, params) {
   app.page.set(page);
   app.state().load(new URLSearchParams(params));
   window.history.pushState({}, '', toUrl(app));
-  render();
 }
 
 function Actions(app) {
@@ -123,8 +129,8 @@ function Actions(app) {
     newBook(e) {
       const displayName = e.closest('.openPage').querySelector('.noteName').value;
       if (displayName && displayName.length > 0) {
-        const bookId = randomChars(5);
         const connection = newConnectionString();
+        const bookId = connectionId(connection);
         app.books.set(bookId, {displayName, connection, lastOpenTime: Date.now()});
         openBook(bookId, app);
         navigate(app, 'list', {});
