@@ -46,12 +46,19 @@ function Actions(app) {
       await writeBackups(dir, app.bookList());
       app.daily.set(true);
     },
-    importDump: async function() {
-      const data = await (await fetch('import.json')).json();
+    importJSON: async function importJSON() {
+      const [handle] = await window.showOpenFilePicker({
+        types: [{description: 'JSON', accept: { 'data/json': ['.json'] }}],
+      });
+      const data = JSON.parse(await (await handle.getFile()).text());
+      if (!data) {
+        alert('malformed data');
+        return;
+      }
       for (const [bookId, {db}] of app.bookList()) {
         const table = db.table('notes');
-        for (const row of data) {
-          table.insert(row);
+        for (const [noteId, row] of data) {
+          table.update(noteId, row);
         }
       }
     }
@@ -75,7 +82,7 @@ const Template = (() => {
 }) ();
 
 function App() {
-  const books = localStorageRefMap('books');
+  const books = localStorageRefMap('books', () => render());
   const backupTime = refMap();
   const databases = refMap();
   const daily = ref(false);

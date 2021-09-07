@@ -346,6 +346,7 @@ async function openBook(bookId, app) {
     clearInterval(updateOnlineStatusInterval);
     db.close();
     closeDatabase = unused => 0;
+    app.online.set(false);
   };
 }
 
