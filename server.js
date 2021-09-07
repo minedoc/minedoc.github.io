@@ -19,11 +19,19 @@ function Actions(app) {
     const date = new Date();
     const datePart = [date.getFullYear(), date.getMonth()+1, date.getDate()].map(x => x.toString().padStart(2, '0')).join('');
     for (const [bookId, {displayName, db}] of books) {
-      const fileName = displayName + '-' + datePart + '.backup';
-      const file = await dir.getFileHandle(fileName, {create: true});
-      const writer = await file.createWritable();
-      await writer.write(db.getBackup());
-      await writer.close();
+      {
+        const fileName = displayName + '-' + datePart + '.backup';
+        const file = await dir.getFileHandle(fileName, {create: true});
+        const writer = await file.createWritable();
+        await writer.write(db.getBackup());
+        await writer.close();
+      }
+      {
+        const file = await dir.getFileHandle(displayName + '-' + datePart + '.json', {create: true});
+        const writer = await file.createWritable();
+        await writer.write(JSON.stringify(Array.from(db.table('notes').entries())));
+        await writer.close();
+      }
       app.backupTime.set(bookId, Date.now());
     }
   }
@@ -38,6 +46,15 @@ function Actions(app) {
       await writeBackups(dir, app.bookList());
       app.daily.set(true);
     },
+    importDump: async function() {
+      const data = await (await fetch('import.json')).json();
+      for (const [bookId, {db}] of app.bookList()) {
+        const table = db.table('notes');
+        for (const row of data) {
+          table.insert(row);
+        }
+      }
+    }
   };
 }
 
