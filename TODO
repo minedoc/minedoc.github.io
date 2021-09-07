@@ -3,15 +3,12 @@
 == Todo ==
 - init page: if deep link -> open the database linked, must include db in URL
 - better background handler
-  restore mobile connection
-  power down webrtc and websocket after a few minutes background
-    not for the server app though
+  power down webrtc and websocket after a few minutes in the background (mobile only)
 - duplication feature
 - better loading screen before js ready
 - verify URL handling works with new page
 - deduplicate render calls for remote changes
   eg once a second
-- android app
 
 == Improvements ==
 improve ref

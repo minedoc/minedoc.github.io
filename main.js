@@ -61,7 +61,7 @@ function handleURL(app) {
           app.drafts.delete(id);
         } else if (app.table.get(id).text != note.text) {
           if (hasImportantDiff(app, id)) {
-            pushState(app, 'diff', {id});
+            pushState(app, 'diff', {id, editable: 'true'});
             render();
             return;
           } else {
@@ -173,6 +173,10 @@ function Actions(app) {
         editStartTime: Date.now(),
       });
     },
+    diffNote(e) {
+      const id = e.closest('[data-note-id]').dataset.noteId;
+      navigate(app, 'diff', {id, editable: 'false'});
+    },
     openItem(e) {
       app.read.set(e.dataset.id, true);
       navigate(app, 'edit', {
@@ -271,6 +275,11 @@ function Actions(app) {
       }
       history.back();
     },
+    diffEdit() {
+      const id = app.pages.diff.id();
+      replaceState(app, 'edit', {id, editStartTime: Date.now()});
+      render();
+    },
     diffRevert() {
       app.drafts.delete(app.pages.diff.id());
       history.back();
@@ -291,6 +300,7 @@ const Template = (() => {
     } else if (page() == 'edit') {
       const note = s.note();
       if (note != undefined) {
+        target.root.data('noteId', s.id());
         target.noteDescription.text(note.draft ? 'draft' : '');
         target.editor.value(note.text);
         target.priority.value(note.priority);
@@ -303,6 +313,7 @@ const Template = (() => {
       }
     } else if (page() == 'diff') {
       target.diff.unsafe_html(s.diffHtml());
+      target.root.data('diffEditable', s.editable());
     }
   });
   const item = template('item', (target, [id, {read, draft, note: {text}}]) => {
@@ -429,6 +440,7 @@ function EditPage(notes) {
 const differ = new diff({timeout: 2, editCost: 8});
 function DiffPage(notes, drafts) {
   const id = ref('');
+  const editable = ref('true');
   const diffHtml = computed(() => {
     const draft = drafts().get(id());
     if (draft) {
@@ -440,7 +452,7 @@ function DiffPage(notes, drafts) {
       return 'no draft to diff';
     }
   });
-  return {id, ...snapshot({id}), diffHtml};
+  return {id, editable, ...snapshot({id, editable}), diffHtml};
 }
 
 function noteSearch(notes, searchTokens, prefix) {

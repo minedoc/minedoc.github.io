@@ -69,7 +69,7 @@
         </select>
         <div class="barText" data-bind="timer"></div>
         <div class="spacer"></div>
-        <div class="barText">diff</div>
+        <div class="barText" onclick="a.diffNote(this)">diff</div>
         <div class="spacer"></div>
         <div class="barText" onclick="a.addNote()">new</div>
         <div class="spacer"></div>
@@ -106,10 +106,12 @@
         <div class="connectivity"></div>
       </div>
       <div class="diffHolder" data-bind="diff"></div>
-      <div class="botBar">
-        <div class="diffSave" onclick="a.diffSave()">Save</div>
+      <div class="botBar diffBotBar">
+        <div class="diffButton" onclick="a.diffSave()">Save</div>
         <div class="spacer"></div>
-        <div class="diffCancel" onclick="a.diffRevert()">Revert Changes</div>
+        <div class="diffButton" onclick="a.diffEdit()">Edit</div>
+        <div class="spacer"></div>
+        <div class="diffButton" onclick="a.diffRevert()">Revert Changes</div>
       </div>
     </div>
   </div>

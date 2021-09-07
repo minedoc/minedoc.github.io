@@ -177,6 +177,7 @@ input, option, select, textarea {
   white-space: pre-wrap;
   padding: 0.5rem;
   overflow-y: scroll;
+  user-select: text;
 }
 ins {
   background-color: #382;
@@ -188,8 +189,10 @@ ins,
 del {
   text-decoration: none;
 }
-.diffSave,
-.diffCancel {
+[data-diff-editable="false"] .diffBotBar {
+  display: none;
+}
+.diffBotBar .diffButton {
   flex: 1;
   padding: 0 1rem;
 }
