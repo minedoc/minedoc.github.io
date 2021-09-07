@@ -55,21 +55,18 @@ function handleURL(app) {
     if (app.page() == 'edit' && app.state().note()) {
       const note = app.state().note();
       const id = app.state().id();
-      if (note.text.length != 0) {
-        if (id.startsWith('draft-')) {
-          app.table.insert(note);
-          app.drafts.delete(id);
-        } else if (app.table.get(id).text != note.text) {
-          if (hasImportantDiff(app, id)) {
-            pushState(app, 'diff', {id, editable: 'true'});
-            render();
-            return;
-          } else {
-            app.table.update(id, note);
-            app.drafts.delete(id);
-          }
+      if (note.text.length != 0 && id.startsWith('draft-')) {
+        app.table.insert(note);
+      } else if (app.table.get(id).text != note.text) {
+        if (hasImportantDiff(app, id)) {
+          pushState(app, 'diff', {id, editable: 'true'});
+          render();
+          return;
+        } else {
+          app.table.update(id, note);
         }
       }
+      app.drafts.delete(id);
     }
 
     const params = new URL(document.location).searchParams;
@@ -164,9 +161,9 @@ function Actions(app) {
       e.setSelectionRange(0, e.value.length);
       document.execCommand('copy');
     },
-    addNote() {
+    addNote(text) {
       const id = 'draft-' + randomChars(5);
-      app.drafts.set(id, {text: '', priority: 3, editDate: Date.now()});
+      app.drafts.set(id, {text, priority: 3, editDate: Date.now()});
       app.read.set(id, true);
       navigate(app, 'edit', {
         id,
@@ -201,6 +198,9 @@ function Actions(app) {
       app.table.delete(app.pages.edit.id());
       app.drafts.delete(app.pages.edit.id());
       history.back();
+    },
+    copyNote(e) {
+      a.addNote(app.pages.edit.note().text.replace(/#template\W?/g, ''));
     },
     editorInput(e) {
       app.drafts.set(app.pages.edit.id(), {
@@ -442,15 +442,11 @@ function DiffPage(notes, drafts) {
   const id = ref('');
   const editable = ref('true');
   const diffHtml = computed(() => {
-    const draft = drafts().get(id());
-    if (draft) {
-      const base = notes().get(id()) || {text: ''};
-      const diff = differ.main(base.text, draft.text);
-      differ.cleanupSemantic(diff);
-      return differ.prettyHtml(diff);
-    } else {
-      return 'no draft to diff';
-    }
+    const base = notes().get(id()) || {text: ''};
+    const draft = drafts().get(id()) || {text: base.text};
+    const diff = differ.main(base.text, draft.text);
+    differ.cleanupSemantic(diff);
+    return differ.prettyHtml(diff);
   });
   return {id, editable, ...snapshot({id, editable}), diffHtml};
 }

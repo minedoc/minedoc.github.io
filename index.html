@@ -44,7 +44,7 @@
       <div class="results" data-bind="results">
       </div>
       <div class="botBar">
-        <div class="addButton" onclick="a.addNote()">Add</div>
+        <div class="addButton" onclick="a.addNote('')">Add</div>
       </div>
     </div>
 
@@ -71,7 +71,9 @@
         <div class="spacer"></div>
         <div class="barText" onclick="a.diffNote(this)">diff</div>
         <div class="spacer"></div>
-        <div class="barText" onclick="a.addNote()">new</div>
+        <div class="barText" onclick="a.addNote('')">new</div>
+        <div class="spacer"></div>
+        <div class="barText" onclick="a.copyNote()">copy</div>
         <div class="spacer"></div>
         <div class="barButton" data-bind="delete" onclick="a.deleteNote()">×</div>
       </div>
