@@ -350,11 +350,11 @@ async function openBook(bookId, app) {
 }
 
 function App() {
-  const books = localStorageRefMap('books');
+  const books = localStorageRefMap('books', () => render());
   const bookList = computed(() => Array.from(books().entries()).sort(descending(x => x[1].lastOpenTime)));
 
   const notes = refMap();
-  const drafts = localStorageRefMap('drafts');
+  const drafts = localStorageRefMap('drafts', () => render());
   Array.from(drafts().entries()).forEach(([k, v]) => v.text == '' ? drafts.delete(k) : 0);
   const read = refMap();
   const selectedBook = ref('foo');

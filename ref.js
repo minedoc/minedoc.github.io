@@ -88,7 +88,7 @@ function computed(update, updateKeys, period=0) {
   }
 }
 
-function localStorageVar(name, ctor, params) {
+function localStorageVar(name, ctor, params, callback) {
   var valStr;
   const value = ctor();
   const saver = debounce(500, () => localStorage.setItem(name, valStr));
@@ -111,13 +111,13 @@ function localStorageVar(name, ctor, params) {
   window.addEventListener('storage', e => {
     if (e.storageArea == localStorage && e.key == name) {
       load(e.newValue);
-      render();
+      callback();
     }
   });
   return value;
 }
 
-function localStorageRefMap(name) {
+function localStorageRefMap(name, callback) {
   return localStorageVar(name, refMap, {
     saveToString: val => JSON.stringify(Array.from(val().entries())),
     loadFromString: (refMap, str) => {
@@ -125,15 +125,15 @@ function localStorageRefMap(name) {
       JSON.parse(str).forEach(([key, val]) => refMap.set(key, val));
     },
     methods: ['set', 'delete', 'clear'],
-  });
+  }, callback);
 }
 
-function localStorageRef(name) {
+function localStorageRef(name, callback) {
   return localStorageVar(name, ref, {
     saveToString: val => JSON.stringify(val()),
     loadFromString: (ref, str) => ref.set(JSON.parse(str)),
     methods: ['set'],
-  });
+  }, callback);
 }
 
 const computedMap = fn => withRefMapMethods(computed(fn));
