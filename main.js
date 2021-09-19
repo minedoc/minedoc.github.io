@@ -177,7 +177,7 @@ function Actions(app) {
       const id = e.closest('[data-note-id]').dataset.noteId;
       navigate(app, 'diff', {id, editable: 'false'});
     },
-    openItem(e) {
+    openNote(e) {
       app.read.set(e.dataset.id, true);
       navigate(app, 'edit', {
         id: e.dataset.id,
