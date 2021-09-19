@@ -59,6 +59,7 @@ function handleURL(app) {
       if (note.text.length != 0 && id.startsWith('draft-')) {
         const {rowId} = app.table.insert(note);
         app.lastEdit.set(rowId);
+        app.read.set(rowId, true);
       } else if (app.table.get(id).text != note.text) {
         if (hasImportantDiff(app, id)) {
           pushState(app, 'diff', {id, editable: 'true'});
