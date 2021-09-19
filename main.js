@@ -15,6 +15,7 @@ async function main() {
   handleURL(app);
 
   window.a = Actions(app);
+  Handlers();
 }
 
 function initURLStack(app) {
@@ -227,9 +228,9 @@ function Actions(app) {
         this.editorIndent(editor, !event.shiftKey);
       }
     },
-    editorCompositionEnd(editor, event) {
+    editorCompositionEnd(event) {
       if (event.data.slice(-1) == '\n') {
-        document.execCommand('insertText', true, editorHeader(editor.selectionStart - 1));
+        document.execCommand('insertText', true, editorHeader(event.target, event.target.selectionStart - 1));
       }
     },
     editorIndent(e, indent) {
@@ -285,6 +286,14 @@ function Actions(app) {
       history.back();
     },
   }
+}
+
+function Handlers() {
+  document.addEventListener('compositionend', event => {
+    if (event.target.classList.contains('editor')) {
+      a.editorCompositionEnd(event);
+    }
+  });
 }
 
 const Template = (() => {
