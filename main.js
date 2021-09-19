@@ -171,7 +171,6 @@ function Actions(app) {
       app.read.set(id, true);
       navigate(app, 'edit', {
         id,
-        editStartTime: Date.now(),
       });
     },
     diffNote(e) {
@@ -182,7 +181,6 @@ function Actions(app) {
       app.read.set(e.dataset.id, true);
       navigate(app, 'edit', {
         id: e.dataset.id,
-        editStartTime: Date.now(),
       });
     },
     orderChange(e) {
@@ -281,7 +279,7 @@ function Actions(app) {
     },
     diffEdit() {
       const id = app.pages.diff.id();
-      replaceState(app, 'edit', {id, editStartTime: Date.now()});
+      replaceState(app, 'edit', {id});
       render();
     },
     diffRevert() {
@@ -316,7 +314,6 @@ const Template = (() => {
         target.noteDescription.text(note.draft ? 'draft' : '');
         target.editor.value(note.text);
         target.priority.value(note.priority);
-        target.timer.text(dateAsAge(s.editStartTime()));
         target.related.repeat(related, s.related());
       } else {
         target.noteDescription.text('deleted');
@@ -437,7 +434,6 @@ function ListPage(notes, lastEdit) {
 
 function EditPage(notes) {
   const id = ref('');
-  const editStartTime = ref(0);
   const note = computed(() => notes().get(id())?.note);
 
   const query = computedMap(() => tokenize(note().text, NO_PREFIX), 500);
@@ -450,7 +446,7 @@ function EditPage(notes) {
       .sort(descending(x => x[1].matchScore))
       .slice(0, 40);
   });
-  return {id, editStartTime, ...snapshot({id, editStartTime}), note, related}
+  return {id, ...snapshot({id}), note, related}
 }
 
 const differ = new diff({timeout: 2, editCost: 8});
