@@ -56,9 +56,10 @@ function handleURL(app) {
     if (app.page() == 'edit' && app.state().note()) {
       const note = app.state().note();
       const id = app.state().id();
+      app.lastOpen.set(id);
       if (note.text.length != 0 && id.startsWith('draft-')) {
         const {rowId} = app.table.insert(note);
-        app.lastEdit.set(rowId);
+        app.lastOpen.set(rowId);
         app.read.set(rowId, true);
       } else if (app.table.get(id).text != note.text) {
         if (hasImportantDiff(app, id)) {
@@ -67,7 +68,6 @@ function handleURL(app) {
           return;
         } else {
           app.table.update(id, note);
-          app.lastEdit.set(id);
         }
       }
       app.drafts.delete(id);
@@ -390,15 +390,15 @@ function App() {
   });
   const online = ref(false);
   const page = ref('list');
-  const lastEdit = ref('');
+  const lastOpen = ref('');
   const pages = {
-    list: ListPage(mergedNotes, lastEdit),
+    list: ListPage(mergedNotes, lastOpen),
     edit: EditPage(mergedNotes),
     open: OpenPage(),
     diff: DiffPage(notes, drafts),
   };
   const state = () => pages[page()];
-  return {books, bookList, page, state, online, pages, notes, drafts, read, table: undefined, lastEdit, /* debug */ mergedNotes };
+  return {books, bookList, page, state, online, pages, notes, drafts, read, table: undefined, lastOpen, /* debug */ mergedNotes };
 }
 
 function OpenPage() {
@@ -406,7 +406,7 @@ function OpenPage() {
 }
 
 const targetAge = [0.25, 1, 4, 8, 16, 32, 64, 128, 256];
-function ListPage(notes, lastEdit) {
+function ListPage(notes, lastOpen) {
   const search = ref('');
   const order = ref('priority');
 
@@ -416,8 +416,8 @@ function ListPage(notes, lastEdit) {
     let sorting;
     const results = Array.from((search() == '' ? notes() : matchedNotes()).entries());
     const draftScore = x => x[1].draft ? 1000000000000 : 0;
-    const lastEditId = lastEdit();
-    const lastEditScore = x => x[0] == lastEditId ? (1000000000000 - 1) : 0;
+    const lastOpenId = lastOpen();
+    const lastOpenScore = x => x[0] == lastOpenId ? (1000000000000 - 1) : 0;
     if (order() == 'priority') {
       const now = Date.now();
       sorting = x => (now - x[1].note.editDate) / (24 * 60 * 60 * 1000 * arrayIndex(targetAge, x[1].note.priority));
@@ -426,7 +426,7 @@ function ListPage(notes, lastEdit) {
     } else if (order() == 'match') {
       sorting = x => x[1].matchScore;
     }
-    const bumpedSorting = x => draftScore(x) + lastEditScore(x) + sorting(x);
+    const bumpedSorting = x => draftScore(x) + lastOpenScore(x) + sorting(x);
     return results.sort(descending(bumpedSorting));
   });
   return {search, order, ...snapshot({search, order}), listing };
