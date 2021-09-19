@@ -35,7 +35,8 @@
         <div class="spacer"></div>
         <select class="listOrder" onchange="a.orderChange(this)" data-bind="order">
           <option value="priority">Priority</option>
-          <option value="recent">Recent</option>
+          <option value="recentEdit">Recent Edits</option>
+          <option value="recentDone">Recent Done</option>
           <option value="match">Match</option>
         </select>
         <div class="spacer"></div>
@@ -67,6 +68,8 @@
           <option value="8">256d</option>
           <option value="10">Archive</option>
         </select>
+        <div class="spacer"></div>
+        <div class="barText" onclick="a.doneNote(this)">diff</div>
         <div class="spacer"></div>
         <div class="barText" onclick="a.diffNote(this)">diff</div>
         <div class="spacer"></div>

@@ -61,7 +61,15 @@ function Actions(app) {
           table.update(noteId, row);
         }
       }
-    }
+    },
+    modifyNotes: function() {
+      for (const [bookId, {db}] of app.bookList()) {
+        const table = db.table('notes');
+        for (const [noteId, row] of table.entries()) {
+          table.update(noteId, {...row, /* modification */});
+        }
+      }
+    },
   };
 }
 

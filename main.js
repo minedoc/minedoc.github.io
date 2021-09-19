@@ -167,11 +167,18 @@ function Actions(app) {
     },
     addNote(text) {
       const id = 'draft-' + randomChars(5);
-      app.drafts.set(id, {text, priority: 3, editDate: Date.now()});
+      app.drafts.set(id, {text, priority: 3, editDate: Date.now(), doneDate: Date.now()});
       app.read.set(id, true);
       navigate(app, 'edit', {
         id,
       });
+    },
+    doneNote(e) {
+      app.drafts.set(app.pages.edit.id(), {
+        ...app.pages.edit.note(),
+        doneDate: Date.now(),
+      });
+      history.back();
     },
     diffNote(e) {
       const id = e.closest('[data-note-id]').dataset.noteId;
@@ -420,9 +427,11 @@ function ListPage(notes, lastOpen) {
     const lastOpenScore = x => x[0] == lastOpenId ? (1000000000000 - 1) : 0;
     if (order() == 'priority') {
       const now = Date.now();
-      sorting = x => (now - x[1].note.editDate) / (24 * 60 * 60 * 1000 * arrayIndex(targetAge, x[1].note.priority));
-    } else if (order() == 'recent') {
+      sorting = x => (now - x[1].note.doneDate) / (24 * 60 * 60 * 1000 * arrayIndex(targetAge, x[1].note.priority));
+    } else if (order() == 'recentEdit') {
       sorting = x => x[1].note.editDate;
+    } else if (order() == 'recentDone') {
+      sorting = x => x[1].note.doneDate;
     } else if (order() == 'match') {
       sorting = x => x[1].matchScore;
     }
