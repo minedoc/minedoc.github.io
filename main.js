@@ -419,9 +419,12 @@ function ListPage(notes, lastOpen) {
 
   const searchTokens = computedMap(() => tokenize(search(), NO_PREFIX));
   const matchedNotes = noteSearch(notes, searchTokens, WITH_PREFIX);
+  const nonArchiveNotes = notes.filter((noteId, note) => note.note.priority < targetAge.length);
   const listing = computed(() => {
     let sorting;
-    const results = Array.from((search() == '' ? notes() : matchedNotes()).entries());
+    const results = Array.from((
+      search() != '' ? matchedNotes() : (
+        order() == 'priority' ? nonArchiveNotes() : notes())).entries());
     const draftScore = x => x[1].draft ? 1000000000000 : 0;
     const lastOpenId = lastOpen();
     const lastOpenScore = x => x[0] == lastOpenId ? (1000000000000 - 1) : 0;
