@@ -18,7 +18,8 @@ html, body, .page, .container {
     background-color: #111;
   }
 }
-body {
+body,
+option {
   background-color: #292e33;
 }
 ::placeholder {
