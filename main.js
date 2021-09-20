@@ -412,7 +412,7 @@ function OpenPage() {
   return {...snapshot({})};
 }
 
-const targetAge = [0.25, 1, 4, 8, 16, 32, 64, 128, 256];
+const targetAge = [0.03, 1, 4, 8, 16, 32, 64, 128, 256];
 function ListPage(notes, lastOpen) {
   const search = ref('');
   const order = ref('priority');
