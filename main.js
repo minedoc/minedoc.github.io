@@ -332,8 +332,8 @@ const Template = (() => {
       target.root.data('diffEditable', s.editable());
     }
   });
-  const item = template('item', (target, [id, {read, draft, note: {text}}]) => {
-    target.root.data('id', id).class('draft', draft).class('read', read);
+  const item = template('item', (target, [id, {read, draft, lastOpen, note: {text}}]) => {
+    target.root.data('id', id).class('draft', draft).class('read', read).class('lastOpen', lastOpen);
     target.text.text(shorten(text, 3, 200));
   });
   const related = template('related', (target, [id, {note: {text}}]) => {
@@ -388,9 +388,9 @@ function App() {
   const selectedBook = ref('foo');
   const mergedNotes = notes.outerJoin([drafts, read], (id, note, draft, read) => {
     if (draft) {
-      return {note: draft, draft: true, read: !!read};
+      return {note: draft, draft: true, read: !!read, lastOpen: false};
     } else if (note) {
-      return {note: note, draft: false, read: !!read};
+      return {note: note, draft: false, read: !!read, lastOpen: false};
     } else {
       return DELETE;
     }
@@ -426,8 +426,6 @@ function ListPage(notes, lastOpen) {
       search() != '' ? matchedNotes() : (
         order() == 'priority' ? nonArchiveNotes() : notes())).entries());
     const draftScore = x => x[1].draft ? 1000000000000 : 0;
-    const lastOpenId = lastOpen();
-    const lastOpenScore = x => x[0] == lastOpenId ? (1000000000000 - 1) : 0;
     if (order() == 'priority') {
       const now = Date.now();
       sorting = x => (now - x[1].note.doneDate) / (24 * 60 * 60 * 1000 * arrayIndex(targetAge, x[1].note.priority));
@@ -438,8 +436,11 @@ function ListPage(notes, lastOpen) {
     } else if (order() == 'match') {
       sorting = x => x[1].matchScore;
     }
-    const bumpedSorting = x => draftScore(x) + lastOpenScore(x) + sorting(x);
-    return results.sort(descending(bumpedSorting));
+    const bumpedSorting = x => draftScore(x) + sorting(x);
+    const lastOpenId = lastOpen();
+    const lastOpenNote = notes().get(lastOpenId);
+    const lastOpenList = lastOpenNote ? [[lastOpenId, {...lastOpenNote, lastOpen: true}]] : [];
+    return lastOpenList.concat(results.sort(descending(bumpedSorting)));
   });
   return {search, order, ...snapshot({search, order}), listing };
 }

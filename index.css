@@ -134,12 +134,27 @@ input, option, select, textarea {
 .item.read {
   color: #666;
 }
-.item.draft {
-  border-left-color: #94a7da;
-}
 .item pre {
   padding: 0.5rem 0.5rem 0.5rem 0.2rem;
   margin: 0;
+}
+.item.draft pre::before {
+  content: 'draft';
+  display: inline-block;
+  color: #fdfdfd;
+  background-color: #94a7da;
+  border-radius: 3px;
+  padding: 0.2rem;
+  margin-right: 0.5rem;
+}
+.item.lastOpen pre::before {
+  content: 'recent';
+  display: inline-block;
+  color: #fdfdfd;
+  background-color: #436d43;
+  border-radius: 3px;
+  padding: 0.2rem;
+  margin-right: 0.5rem;
 }
 .addButton {
   padding: 0 1rem;
