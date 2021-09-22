@@ -385,7 +385,6 @@ function App() {
   const drafts = localStorageRefMap('drafts', () => render());
   Array.from(drafts().entries()).forEach(([k, v]) => v.text == '' ? drafts.delete(k) : 0);
   const read = refMap();
-  const selectedBook = ref('foo');
   const mergedNotes = notes.outerJoin([drafts, read], (id, note, draft, read) => {
     if (draft) {
       return {note: draft, draft: true, read: !!read, lastOpen: false};
@@ -397,7 +396,7 @@ function App() {
   });
   const online = ref(false);
   const page = ref('list');
-  const lastOpen = ref('');
+  const lastOpen = localStorageRef('lastOpen', () => render());
   const pages = {
     list: ListPage(mergedNotes, lastOpen),
     edit: EditPage(mergedNotes),
