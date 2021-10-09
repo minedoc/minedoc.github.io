@@ -61,13 +61,16 @@ function handleURL(app) {
         const {rowId} = app.table.insert(note);
         app.lastOpen.set(rowId);
         app.read.set(rowId, true);
-      } else if (app.table.get(id).text != note.text) {
-        if (hasImportantDiff(app, id)) {
-          pushState(app, 'diff', {id, editable: 'true'});
-          render();
-          return;
-        } else {
-          app.table.update(id, note);
+      } else {
+        const original = app.table.get(id);
+        if (original.text != note.text || original.priority != note.priority) {
+          if (hasImportantDiff(app, id)) {
+            pushState(app, 'diff', {id, editable: 'true'});
+            render();
+            return;
+          } else {
+            app.table.update(id, note);
+          }
         }
       }
       app.drafts.delete(id);
