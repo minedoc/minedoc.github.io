@@ -19,7 +19,7 @@ html, body, .page, .container {
   }
 }
 body,
-option {
+body option {
   background-color: #292e33;
 }
 ::placeholder {
