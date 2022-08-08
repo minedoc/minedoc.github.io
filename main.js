@@ -5,6 +5,11 @@ import {ref, refMap, computed, computedMap, DELETE, toggleDebug, localStorageRef
 debuggingShowErrors();  // TODO: remove
 // toggleDebug();  // TODO: remove
 
+// to enable desktop pwa
+window.addEventListener('load', () => {
+  navigator.serviceWorker.register('/sw.js');
+});
+
 var render;
 async function main() {
   const app = window.app = App();
