@@ -30,6 +30,6 @@ function canonicalPath(path) {
 self.addEventListener('fetch', event => {
   const path = canonicalPath(new URL(event.request.url).pathname);
   if (precachedAssets.includes(path)) {
-    event.respondWith(caches.open(cacheName).then(cache => cache.match(path));
+    event.respondWith(caches.open(cacheName).then(cache => cache.match(path)));
   }
 });
