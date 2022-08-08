@@ -1,5 +1,3 @@
-self.addEventListener('install', () => self.skipWaiting());
-
 const cacheName = 'offline_files';
 const precachedAssets = [
   'index.html',
@@ -22,7 +20,7 @@ const precachedAssets = [
 ];
 
 self.addEventListener('install', () => {
-  event.waitUntil(caches.open(cacheName).then(cache => cache.addAll(precachedAssets));
+  event.waitUntil(caches.open(cacheName).then(cache => cache.addAll(precachedAssets)));
 });
 
 function canonicalPath(path) {
