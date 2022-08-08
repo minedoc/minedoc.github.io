@@ -15,8 +15,6 @@ const precachedAssets = [
   '/serverless2/discovery.js',
   '/serverless2/stub.js',
   '/serverless2/binary.js',
-  '/manifest.json',
-  '/site-icon.svg',
 ];
 
 self.addEventListener('install', event => {
