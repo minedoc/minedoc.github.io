@@ -2,5 +2,10 @@
   "name": "Notes",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#292e33"
+  "background_color": "#292e33",
+  "icons": [{
+    "src": "site-icon.svg",
+    "sizes": "any",
+    "type": "image/svg+xml"
+  }],
 }
