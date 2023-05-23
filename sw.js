@@ -24,6 +24,15 @@ self.addEventListener('install', event => {
 self.addEventListener('fetch', event => {
   const path = new URL(event.request.url).pathname;
   if (precachedAssets.includes(path)) {
-    event.respondWith(caches.open(cacheName).then(cache => cache.match(path)));
+    // stale-while-revalidate
+    event.respondWith(caches.open(cacheName).then(cache => {
+      return cache.match(event.request).then(cachedResponse => {
+        const fetchedResponse = fetch(event.request).then((networkResponse) => {
+          cache.put(event.request, networkResponse.clone());
+          return networkResponse;
+        });
+        return cachedResponse || fetchedResponse;
+      });
+    }));
   }
 });
